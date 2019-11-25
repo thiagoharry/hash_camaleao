@@ -1,0 +1,1093 @@
+\documentclass[a4paper]{article}
+
+\usepackage[brazilian]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsfonts}
+\usepackage{cite}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{graphicx}
+\usepackage[linesnumbered,lined,boxed,commentsnumbered]{algorithm2e}
+
+\def\ok{\tikz\fill[scale=0.4](0,.35) -- (.25,0) -- (1,.7) -- (.25,.15) -- cycle;}
+
+%\newcommand{\mod}[1]{\ \mathrm{mod}\ #1}
+
+\title{Hashes Camaleão: Definição e Construção}
+\author{Thiago Leucz Astrizi}
+
+\begin{document}
+
+\maketitle
+
+\section{Introdução}
+
+Hashes camaleão são funções muito semelhantes à hashes comuns. A
+diferença é que elas possuem uma chave pública e uma chave privada
+associada a elas. De posse de sua chave pública, é possível usá-las
+para calcular o hash de algum dado qualquer, o que também permite
+conferir se o cálculo de um hash está correto. Todas as propriedades
+características à funções hash criptográficas (resistência à
+pré-imagem, resistência à segunda pré-imagem, resistência à colisão)
+estão presentes nas hashes camaleão quando elas são usadas somente
+junto à sua chave pública.
+
+Tendo acesso à chave privada de uma hash camaleão, a propriedade de
+resistência à segunda pré-imagem se perde, o que também acaba com a
+propriedade de resistência à colisões. Dependendo da construção da
+hash camaleão, a propriedade de resistência à primeira pré-imagem
+também pdode se perder quando tem-se acesso à chave privada.
+
+Segundo uma definição adaptada de Ateniese e Medeiros \cite{ateniese},
+um esquema de hash camaleão é definido pelas seguintes funções:
+
+\begin{itemize}
+\item\textbf{KeyGen}: $1^k \rightarrow (\mathcal{SK}, \mathcal{PK})$\\
+  Dado um parâmetro de segurança, ela retorna um par de chaves pública
+  e privada a ser usada com uma hash camaleão.
+\item\textbf{Hash}: $(\mathcal{PK}, m, r) \rightarrow C \in \{0,
+  1\}^\mathcal{T}$ \\ Dada uma chave pública, uma mensagem e um parâmetro
+  aleatório, retorna uma sequência binária de tamanho fixo $\mathcal{T}$.
+\item\textbf{UForge}: $(\mathcal{SK}, m, r) \rightarrow (m',
+  r')$\\ tal que $Hash(\mathcal{PK}, m, r) = Hash(\mathcal{PK}, m',
+  r')$ e $(m, r) \neq (m', r')$.
+\item\textbf{IForge}: $(\mathcal{PK}, m, r, m', r') \rightarrow (m'',
+  r'')$\\ tal que $Hash(\mathcal{PK}, m, r) = Hash(\mathcal{PK}, m',
+  r') \Longrightarrow$\\ $Hash(\mathcal{PK}, m, r) = Hash(\mathcal{PK}, m',
+  r') = Hash(\mathcal{PK}, m'', r'')$, sendo $m \neq m' \neq m''$.
+\item\textbf{FirstPreImage}: $(\mathcal{SK}, m, C) \rightarrow r$
+  tal que $Hash(\mathcal{PK}, m, r) = C$.
+\end{itemize}
+
+As duas últimas funções são opcionais e não estão presentes em todos
+os esquemas. A última não foi sugerida por Ateniese e Medeiros e está
+sendo adicionada aqui por ser considerada relevante neste contexto no
+qual vamos analizar uma quantidade maior de esquemas, não só aqueles
+livres de exposição de chave (ver abaixo).  Além disso, na prática
+alguns esquemas podem exigir parâmetros adicionais como uma string de
+identificação ou um segundo argumento aleatório além de $r$.
+
+Iremos definir as seguintes propriedades, também adaptadas de Ateniese
+e Medeiros, com uma última adicional:
+
+\begin{itemize}
+\item\textbf{Resistência a Colisão: }Não existe algoritmo eficiente
+  que dado apenas $\mathcal{PK}$, $m$ e $r$, consegue encontrar um
+  segundo par $m'$ e $r'$ tal que $Hash(\mathcal{PK}, m, r) =
+  Hash(\mathcal{PK}, m', r')$.
+
+  A propriedade pode ser definida formalmente para um esquema de hash
+  camaleão $CH$ se para qualquer algoritmo eficiente $\mathcal{A}$, a
+  probabilidade do experimento abaixo retornar 1 é negligível:
+
+  \begin{algorithm}[H]
+    \SetAlgoLined
+    \SetKwInOut{Input}{Entrada}\SetKwInOut{Output}{Saída}
+    \SetKwFunction{FMain}{CollRes$_\mathcal{A}^{CH}$}
+    \SetKwProg{Fn}{Experimento}{:}{} \Fn{\FMain{$n$}}{
+      $(\mathcal{PK}, \mathcal{SK}) \leftarrow
+      $\textbf{KeyGen}($1^n$)\; $(m, r, m', r') \leftarrow
+      \mathcal{A}(\mathcal{PK})$\; {\eIf{$Hash(\mathcal{PK}, m, r) =
+          Hash(\mathcal{PK}, m', r')$ \textbf{e} $(m, r) \neq (m',
+          r')$} {\textbf{retorne} 1} {\textbf{retorne} 0} } }\textbf{Fim}
+  \end{algorithm}
+  
+\item\textbf{Segurança Semântica: }O valor de um hash não deve
+  revelar nenhuma informação sobre a mensagem que o gerou. Nos
+  esquemas a serem apresentados, demonstrar esta propriedade é
+  equivalente a demonstrar que qualquer mensagem $m$ pode gerar
+  qualquer valor de hash possível a depender somente do valor de
+  $r$. Desta forma, conhecer o valor do hash não interfere na
+  probabilidade de acertarmos qual mensagem foi escolhida para gerar
+  um hash.
+\item\textbf{Ocultação de Mensagem: }Essa propriedade se refere à
+  existência da função \textbf{IForge} acima. Isso é o que permite que
+  quando as hashes camaleão são usadas no contexto de assinaturas, se
+  um signatário que assumimos não possuir a chave privada assinar o
+  hash $C$ da mensagem $m$ e alguém atribuir sua assinatura à mensagem
+  $m'$ obtida pro meio da função \textbf{UForge}, então o signatário é
+  capaz de provar que não assinou aquela mensagem específica sem
+  revelar a mensagem original $m$, mas apenas uma mensagem $m''$
+  obtida por meio de \textbf{IForge}. Por outro lado, como ele não
+  possui $\mathcal{SK}$, se alguém atribuir sua assinatura à uma
+  mensagem que ele realmente assinou, ele não é capaz de produzir um
+  $m'$ nem $m''$.
+\item\textbf{Livre de Exposição de Chave: }A colisão de um hash
+  camaleão sempre revela alguma informação por meio da equação
+  $Hash(\mathcal{PK}, m, r) = Hash(\mathcal{PK}, m', r')$. Essa
+  propriedade garante que a informação obtida não revela
+  $\mathcal{SK}$ e nem dá informações que auxiliem na sua descoberta.
+\item\textbf{Cálculo de Primeira Pré-Imagem: }Esta propriedade diz
+  respeito à existência da função \textbf{FirstPreImage}.
+\end{itemize}
+
+Uma última propriedade compartilhada por definição por todos os hashes
+camaleão é que a composição de uma função hash convencional e uma hash
+camaleão é sempre uma hash camaleão. Por causa disso, sempre que for
+relevante, a construção de um hash camaleão pode assumir que todas as
+mensagens de seu domínio possuem sempre o mesmo tamanho fixo.
+
+\section{Construção Baseada em Permutações (Krawczyk) \cite{krawczyk}}
+
+\subsection{Funções}
+
+\textbf{KeyGen: }Como chave pública, gere duas funções de permutação
+que atuam sobre um mesmo Domínio. Chamaremos elas de $f_0$ e
+$f_1$. Como chave privada, armazene o inverso destas funções:
+$f_0^{-1}$ e $f_1^{-1}$.
+
+A construção de Krawczyk usa como funções: $f_0(x) = x^2 \mod n$ e
+$f_1(x) = 4x^2 \mod n$ para $n$ sendo um múltiplo de dois primos
+grandes $p$ e $q$, tal que $p \equiv 3 \mod 8$ e $q \equiv 7 \mod
+8$. E sendo a função definida apenas para resíduos quadráticos módulo
+$n$ que também são primos em relação à $n$. A chave pública precisa
+então apenas armazenar $n$ e a chave privada armazena $p$ e $q$. As
+funções inversas envolvem raíz quadrada modular, as quais só sabemos
+como resolver eficientemente módulo $n$ quando conhecemos os fatores
+de $n$.
+
+\textbf{Hash:} A função aceita como parâmetro aleatório somente
+valores de $r$ que são resíduos quadráticos módulo $n$. Em seguida,
+usando a representação binária da mensagem $m$, percorremos em ordem
+cada um dos bits em uma iteração. Inicialmente o valor do hash é
+considerado como igual a $r$. Em cada bit da iteração atualizamos como
+novo valor da hash o valor anterior passado para $f_0$ se o bit for 0
+ou o valor anterior passado para $f_1$ se o bit for 1.
+
+\textbf{FirstPreImage:} Para obter um valor válido de $r$ para que a
+mensagem $m$ tenha o hash $C$, comece com o valor inicial de $C$ e
+percorra a representação binária de $m$ de trás pra frente. Toda vez
+que encontrar um 0, aplique sobre o valor atual de $r$ a função
+$f_0^{-1}$. Sempre que encontrar um 1, aplique $f_1^{-1}$. O valor
+final é o $r$ desejado.
+
+\textbf{UForge:} Basta escolher uma mensagem $m'$ qualquer que seja
+diferente de $m$ e calcular usando a equação:
+
+$UForge(\mathcal{SK}, m, r) = (m', FirstPreImage(\mathcal{SK}, m', Hash(\mathcal{PK}, m, r)))$
+
+\textbf{IForge:} Essa função existe somente porque a construção de
+Krawczyk não é livre de exposição da chave (ver abaixo). Isso
+significa que se temos acesso a uma colisão, podemos extrair a chave
+privada $\mathcal{SK}$. Sendo assim, dado um $m$ e $m'$, podemos
+escolher um terceiro $m''$ diferente e obter um $r''$ correspondente
+usando a mesma equação acima.
+
+Isso é uma característica específica da construção de Krawczyk. Se
+outras funções de permutações fôssem usadas, de modo que a
+implementação fôsse livre de exposição de chave, não necessariamente
+teríamos acesso à esta função.
+
+\subsection{A Exposição de Chave}
+
+Se encontramos uma colisão nesta hash camaleão, temos duas mensagens
+que à partir de algum momento em que iteramos sobre seus bits, obtemos
+valores distintos $x$ e $y$ tais que:
+
+$$
+x^2 \equiv 4y^2 \pmod n
+$$
+
+O que nos leva a:
+
+$$
+x^2 - 4y^2 \equiv 0 \pmod n
+$$
+
+$$
+(x+2y)(x-2y) \equiv 0 \pmod n
+$$
+
+Desta forma, conseguimos fatorar $n$ e ter acesso à chave privada
+$\mathcal{SK}$.
+
+O mesmo raciocínio também nos mostra que encontrar uma colisão sem
+acesso à $\mathcal{SK}$ é tão difícil quanto fatorar números.
+
+\subsection{Propriedades}
+
+As seguintes propriedades são específicas da construção de Krawczyk. O
+uso de diferentes permutações pode mudar as propriedades.
+
+\textbf{Resistência a Colisão: }Sim se assumirmos que é difícil
+fatorar números.
+
+\textbf{Ocultação de Mensagem: }Sim, usando a função \textbf{IForge}
+definida acima.
+
+\textbf{Livre de Exposição de Chave: } Não.
+  
+\textbf{Cálculo de Primeira Pré-Imagem: }Sim.
+
+\subsection{Exemplo Didático}
+
+Começamos escolhendo os valores $p=3$ e $q=7$, que tem a propriedade
+desejada de serem respectivamente côngruos a 3 e 7 módulo
+8. Multiplicamos estes números para obtermos $n = 21 = pq$. No módulo
+21 obtemos 3 números que são resíduos quadráticos: 1, 4 e 16.
+
+Com estes três valores diferentes, definimos a função $f_0(x)=x^2\mod
+21$ e $f_1=4x^2\mod 21$:
+
+\includegraphics[width=5cm]{imagens/toy1.eps}
+
+Para gerarmos o hash da mensagem com bits $01101$, geramos um $r$
+aleatório que pode ser 1, 4 ou 16. No caso, escolhemos 4. Calculamos
+então:
+
+$$
+f_1(f_0(f_1(f_1(f_0(4))))) = f_1(f_0(f_1(f_1(16)))) = f_1(f_0(f_1(16))) =
+f_1(f_0(16)) = f_1(4) = 1
+$$
+
+Queremos que a mensagem com bits $00101$ tenha exatamente o mesmo hash
+que a mensagem acima (no caso, 1). Para descobrirmos o valor de $r'$
+que devemos associar à ela para este fim, calculamos:
+
+$$
+f_0^{-1}(f_0^{-1}(f_1^{-1}(f_0^{-1}(f_1^{-1}(1))))) =
+f_0^{-1}(f_0^{-1}(f_1^{-1}(f_0^{-1}(4)))) =
+f_0^{-1}(f_0^{-1}(f_1^{-1}(16))) =
+$$
+$$
+=f_0^{-1}(f_0^{-1}(16)) = f_0^{-1}(4) = 16
+$$
+
+O que significa que podemos calcular o hash dessa mensagem e obteremos
+$Hash(00101, 16)=1$. O que podemos conferir calculando abaixo:
+
+$$
+f_1(f_0(f_1(f_0(f_0(16))))) = f_1(f_0(f_1(f_0(4)))) = f_1(f_0(f_1(16))) =
+f_1(f_0(16)) = f_1(4) = 1
+$$
+
+Exatamente o valor que era esperado.
+
+\section{Construção Baseada em Logaritmo Discreto (Krawczyk)
+  \cite{krawczyk}}
+
+\subsection{Funções}
+
+\textbf{KeyGen: }Primeiro encontre primos grandes $p$ e $q$ tais que
+$p = kq+1$ e um grupo multiplicativo modular $\mathbb{Z}^{*}_p$ com um
+gerador $g$.
+
+A chave privada é um valor aleatório $x \in \mathbb{Z}^{*}_q$.
+
+A chave pública é um valor $y = g^x \mod p$.
+
+\textbf{Hash:}Dada uma mensagem $m \in \mathbb{Z}^{*}_q$ e um
+parâmetro $r\in \mathbb{Z}^{*}_q$, a hash camaleão é obtida por meio
+da definição:
+
+$$
+Hash(m, r) = g^my^r \mod p
+$$
+
+\textbf{FirstPreImage:} Não. Seria necessário resolver o problema do
+logaritmo discreto para implementar esta função.
+
+\textbf{UForge:} A chave privada é o logaritmo discreto de $y$. Se
+temos um $m$ e um $r$ que possui um hash conhecido e queremos que um
+$m'$ qualquer gere o mesmo valor hash, o valor $r'$ necessário pode
+ser obtido pela equação:
+
+$$
+m+xr = m'+xr'
+$$
+
+Notar que da mesma forma, uma pessoa que não conhece o valor $x$, mas
+que tem acesso a pares $(m, r)$ e $(m', r')$, pode obter o valor de
+$x$ usando a mesma equação. Portanto esta implementação sofre com o
+problema de exposição de chave.
+
+\textbf{IForge:} Este esquema também sofre do problema de exposição de
+chaves. Sendo assim, tendo acesso a uma colisão é trivial extrair a
+chave privada e assim esta função pode ser implementada como na seção
+anterior.
+
+\subsection{Propriedades}
+
+\textbf{Resistência a Colisão: }Sim se assumirmos que é difícil
+calcular o logaritmo discreto no grupo escolhido.
+
+\textbf{Ocultação de Mensagem: }Sim, usando a função \textbf{IForge}.
+
+\textbf{Livre de Exposição de Chave: } Não.
+  
+\textbf{Cálculo de Primeira Pré-Imagem: }Não.
+
+\subsection{Exemplo Didático}
+
+Vamos escolher um $p=11=(5)(2)+1$ com um $q=5$. Para o nosso valor de
+$p$ temos então o seguinte grupo multiplicativo:
+
+\begin{tabular}{|c||c|c|c|c|c|c|c|c|c|c|}
+  \hline
+$\times$&1&2&3&4&5&6&7&8&9&10\\
+  \hline
+  \hline
+1&1&2&3&4&5&6&7&8&9&10\\
+\hline
+2&2&4&6&8&10&1&3&5&7&9\\
+\hline
+3&3&6&9&1&4&7&10&2&5&8\\
+\hline
+4&4&8&1&5&9&2&6&10&3&7\\
+\hline
+5&5&10&4&9&3&8&2&7&1&6\\
+\hline
+6&6&1&7&2&8&3&9&4&10&5\\
+\hline
+7&7&3&10&6&2&9&5&1&8&4\\
+\hline
+8&8&5&2&10&7&4&1&9&6&3\\
+\hline
+9&9&7&5&3&1&10&8&6&4&2\\
+\hline
+10&10&9&8&7&6&5&4&3&2&1\\
+\hline
+\end{tabular}
+
+Com relação à exponenciação, se fizermos o valor de cada linha abaixo
+elevado ao valor da coluna obtemos a tabela:
+
+\begin{tabular}{|c||c|c|c|c|c|c|c|c|c|c|}
+  \hline
+  $a^b$&1&2&3&4&5&6&7&8&9&10\\
+  \hline
+  \hline
+1&1&1&1&1&1&1&1&1&1&1\\
+\hline
+2&2&4&8&5&10&9&7&3&6&1\\
+\hline
+3&3&9&5&4&1&3&9&5&4&1\\
+\hline
+4&4&5&9&3&1&4&5&9&3&1\\
+\hline
+5&5&3&4&9&1&5&3&4&9&1\\
+\hline
+6&6&3&7&9&10&5&8&4&2&1\\
+\hline
+7&7&5&2&3&10&4&6&9&8&1\\
+\hline
+8&8&9&6&4&10&3&2&5&7&1\\
+\hline
+9&9&4&3&5&1&9&4&3&5&1\\
+\hline
+10&10&1&10&1&10&1&10&1&10&1\\
+\hline
+\end{tabular}
+
+Podemos escolher qualquer elemento cuja ordem é $q=5$ como
+gerador. Pode ser o 3, 4, 5 ou 9. Escolheremos então $g=5$. Podemos
+escolher como chave privada os valores 1, 2, 3 ou 4, pois eles tem
+ordem $q=5$. Façamos então $\mathcal{SK}=3$. O que faz com que nossa
+chave pública seja $\mathcal{PK}=5^3\mod 11 = 4$.
+
+Vamos calcular um hash para a mensagem representada pelo número
+$m=8$. O nosso parâmetro aleatório $r$ pode ser 1, 2, 3 ou 4. Façamos
+então $r=2$. A hash é calculada então por:
+
+$$
+Hash(\mathcal{PK}=4, m=8, r=2) = g^my^r = 5^84^2 \mod 11 = 9
+$$
+
+Agora supondo que tenhamos a chave privada, queremos fazer com que a
+mensagem $m'=7$ tenha exatamente o mesmo valor de hash. Para isso
+fazemos:
+
+\begin{equation}
+\begin{split}
+  UForge(\mathcal{SK}=3, m=8, r=2, m'=7) &= \frac{m+xr-m'}{x} \mod 5\\
+  &= 2(3)^{-1} \mod 5 = (2)(2) \mod 5 = 4
+\end{split}
+\end{equation}
+
+Para checar que isso é correto, vamos calcular:
+
+$$ Hash(\mathcal{PK}=4, m'=7, r'=4) = g^{m'}y^{r'} = 5^74^4 \mod 11 =
+(3)(3)= 9
+$$
+
+Exatamente o resultado esperado.
+
+\section{Construção Baseada no RSA (Ateniese e Medeiros) \cite{ateniese}}
+
+Este esquema se baseia nas propriedades da assinatura e criptografia
+RSA. Elas nos dizem que se temos dois primos grandes $p$ e $q$,
+podemos obter um número primo em relação a $\phi(pq)$ que chamamos de
+$e$ e o seu inverso multiplicativo módulo $\phi(pq)$, que chamamos de
+$d$. Seja $n=pq$.
+
+Temos então que $M'=M^e \mod n$ e $M=M'^d \mod n$. Tratamos $(e, n)$
+como a chave pública e $(d, p, q)$ como a chave privada. As chaves
+podem ser calculadas facilmente somente por alguém que conhece os
+fatores primos que formam $n$.
+
+\subsection{Funções}
+
+\textbf{KeyGen: } Idêntica à geração de chaves do RSA. A chave pública
+é $(e, n)$ e a chave privada é $(d, p, q)$. A única restrição
+adicional é que $e$ deve ser um número primo, não apenas primo em
+relação a $\phi(n)$.
+
+\textbf{Hash: } Assuma que esta função além da mensagem $m$ e do
+parâmetro $r$ recebe também um $\mathcal{L}$ que representa uma
+identificação ou rótulo da operação sendo realizada. Seja $C$ e
+$\mathcal{H}$ duas funções hash convencionais com um tamanho ajustado
+de acordo com parâmetros de segurança e de modo que $\mathcal{H}$ gere
+valores sempre menores que $e$.
+
+Calculamos o hash camaleão calculandoda seguinte forma:
+
+$$
+Hash(\mathcal{L}, m, r) = C(\mathcal{L})^{\mathcal{H}(m)}r^e \mod n
+$$
+
+\textbf{FirstPreImage:} Não está presente neste esquema.
+
+\textbf{UForge:} Para obtermos um novo valor $r'$ para um dado $m'$
+que tenha mesmo hash que $m$ e $r$, podemos comaçar pela equação:
+
+$$
+C(\mathcal{L})^{\mathcal{H}(m)}r^e \equiv C(\mathcal{L})^{\mathcal{H}(m')}r'^e \pmod n
+$$
+
+Dividindo ambos os lados da equação por $C(\mathcal{L})^{\mathcal{H}(m')}$:
+
+$$
+C(\mathcal{L})^{\mathcal{H}(m)-\mathcal{H}(m')}r^e \equiv r'^e \pmod n
+$$
+
+Fazendo a equação ser elevada ao expoente $d$ (que pertence à chave
+privada):
+
+$$
+rC(\mathcal{L})^{d(\mathcal{H}(m)-\mathcal{H}(m'))} \equiv r' \pmod n
+$$
+
+E portanto, podemos calcular $r'$ por meio de \textbf{UForge} com a
+equação abaixo:
+
+$$
+r' = rC(\mathcal{L})^{d(\mathcal{H}(m)-\mathcal{H}(m'))} \mod n
+$$
+
+\textbf{iForge:} É possível extrair o valor $C(\mathcal{L})^d$ por
+meio de uma colisão, que representa uma assinatura RSA sobre o valor
+$\mathcal{L}$. Obtendo este valor, pode-se criar qualquer outra
+colisão neste esquema de hash, mesmo sem sermos capazes de obter a
+chave privada $d$.
+
+O modo de obter $C(\mathcal{L})^d$ é à partir das equações
+acima. Temos inicialmente que:
+
+$$
+r'/r \equiv C(\mathcal{L})^{d(\mathcal{H}(m)-\mathcal{H}(m'))} \pmod n
+$$
+
+Como $e$ é primo e maior que qualquer valor retornado por
+$\mathcal{H}$, então $mdc(e, \mathcal{H}(m)-\mathcal{H}(m')) = 1$. E
+portanto, usando o Algoritmo Estendido de Euclides, podemos obter
+valores $\alpha$ e $\beta$ tais que
+$\alpha(\mathcal{H}(m)-\mathcal{H}(m'))+\beta e = 1$.
+
+Elevando os dois lados da equação acima por $\alpha$ ficamos com:
+
+$$
+(r'/r)^\alpha \equiv C(\mathcal{L})^{d(\mathcal{H}(m)-\mathcal{H}(m'))\alpha} \pmod n
+$$
+
+E multiplicando por $C(\mathcal{L})^{d\beta e}$:
+
+$$
+(r'/r)^\alpha C(\mathcal{L})^{d\beta e} \equiv C(\mathcal{L})^{d(\mathcal{H}(m)-\mathcal{H}(m'))\alpha + d\beta e} \pmod n
+$$
+
+Pela propriedade do RSA, elevar um valor à $d$ e depois à $e$ temos a
+identidade do valor no lado esquerdo da equação. E pela propriedade de
+$\alpha$ e $\beta$ que escolhemos, no lado direito da equação podemos
+simplificar a combinação linear destes valores no expoente por
+1. Portanto extraímos assim o valor que queríamos:
+
+$$
+(r'/r)^\alpha C(\mathcal{L})^{\beta} \mod n= C(\mathcal{L})^d
+$$
+
+\subsection{Propriedades}
+
+\textbf{Resistência a Colisão: }Sim, assumindo que não é possível
+forjar uma assinatura RSA, que o valor de $\mathcal{L}$ nunca foi
+utilizado antes de modo que alguma colisão tenha sido obtida e que as
+funções hash $C$ e $\mathcal{H}$ atendem às propriedades esperadas de
+hashes criptográficas.
+
+\textbf{Ocultação de Mensagem: }Sim, pois foi definida uma função
+\textbf{IForge}.
+
+\textbf{Livre de Exposição de Chave: } Sim. Expor uma colisão não
+expõe a chave privada, apenas uma assinatura RSA sobre $\mathcal{L}$,
+o qual assumimos que é um valor único que não é reaproveitado.
+  
+\textbf{Cálculo de Primeira Pré-Imagem: }Não.
+
+\section{Construção Baseada em Assinatura Boneh-Lynn-Shacham (Zhang) \cite{zhang}}
+
+Seja $G_1$ e $G_2$ dois grupos (cuja operação será escrita aqui na
+notação multiplicativa) nos quais dado um gerador $g$ e valores $g^x$
+e $g^y$, é difícil computar $g^{xy}$ (Problema Computacional
+Diffie-Hellman). E seja $e$ uma função que associa dois elementos do
+primeiro grupo a um elemento do segundo tal que $e(g^a, g^b) = e(g,
+g)^{ab}$ e $e(g, g) \neq 1$.
+
+Qundo temos um grupo onde tais operações existem, temos um grupo de
+Lacuna Diffie-Hellman, onde é difícil resolver o Problema
+Computacional Diffie-Hellman descrito acima, mas onde é fácil de
+resolver sua variante de decisão, o Problema de Decisão
+Diffie-Hellman. Ele consiste em responder se dados quatro valores
+pertencentes a um grupo ($g$, $g^x$, $g^y$ e $G^z$) temos que $xy=z$.
+
+Resolver tal problema de decisão torna-se fácil em tais grupos porque
+isso é equivalente a responder se $e(g, g^z) = e(g^x, g^y)$.
+
+Como consequência de sua definição, a função de emparelhamento
+bilinear tem também as seguintes propriedades:
+
+\begin{itemize}
+\item$e(pr, q) = e(p, q)e(r, q)$
+\item$e(a^b, c) = e(a, c^b)$
+\end{itemize}
+
+As duas propriedades acima e a dificuldade do Problema Computacional
+Diffie-Hellman é o que garante que a construção desta seção funcione.
+
+\subsection{Funções}
+
+\textbf{KeyGen: }Dado um grupo multiplicativo que é um grupo de Lacuna
+Diffie-Hellman, escolha um valor inteiro $s$ como chave privada e um
+valor $g^s$ pertencente ao grupo como chave pública.
+
+\textbf{Hash: } Assim como no esquema anterior, assuma que a função de
+hash recebe um parâmetro único $\mathcal{L}$ e que existem duas
+funções hash criptográficas comuns que são usadas: $C$ e
+$\mathcal{H}$.
+
+O hash camaleão é calculado  pela fórmula:
+
+$$
+Hash(\mathcal{L}, m, r) = e(r, g)e(C(m)^{\mathcal{H}(\mathcal{L})}, g^s)
+$$
+
+\textbf{FirstPreImage:} Não está presente neste esquema.
+
+\textbf{UForge:} Para obtermos um novo valor $r'$ para um dado $m'$
+que tenha mesmo hash que $m$ e $r$ e quando conhecemos a chave privada
+$s$ é obtido pela fórmula:
+
+$$
+UForge(\mathcal{L}, s, m, r, m') = \left[\frac{C(m)}{C(m')}^{\mathcal{H}(\mathcal{L})^s}\right]r = r'
+$$
+
+Isso funciona pois se formos calcular o hash de $m'$ com este $r'$
+calculado, o resultado será:
+
+\begin{equation}
+\begin{split}
+  Hash(\mathcal{L}, m', r') &= e(r', g)e(C(m')^{\mathcal{H}(\mathcal{L})}, g^s)\\
+  &= e(\left[\frac{C(m)}{C(m')}^{\mathcal{H}(\mathcal{L})^s}\right]r, g)e(C(m')^{\mathcal{H}(\mathcal{L})}, g^s)\\
+  &=e(\left[\frac{C(m)}{C(m')}^{\mathcal{H}(\mathcal{L})^s}\right], g)e(r, g)e(C(m')^{\mathcal{H}(\mathcal{L})}, g^s)\\
+  &=e(\left[\frac{C(m)}{C(m')}^{\mathcal{H}(\mathcal{L})}\right], g^s)e(r, g)e(C(m')^{\mathcal{H}(\mathcal{L})}, g^s)\\
+  &=e(C(m)^{\mathcal{H}(\mathcal{L})}, g^s)e(r, g)\\
+  &= Hash(\mathcal{L}, m, r)\\
+\end{split}
+\end{equation}
+
+\textbf{IForge:} Não está definida neste esquema. Poderia ser feito se
+uma forma de isolar $\mathcal{H}(\mathcal{L})^s$ à partir de uma
+colisão fôsse encontrada.
+
+\subsection{Propriedades}
+
+\textbf{Resistência a Colisão: }Sim se assumirmos que é difícil forjar
+um esquema de assinatura Boneh–Lynn–Shacham e que o valor
+$\mathcal{L}$ não é reaproveitado em diferentes hashes camaleão.
+
+\textbf{Ocultação de Mensagem: }Não, pois uma função \textbf{IForge}
+não foi definida.
+
+\textbf{Livre de Exposição de Chave: } Sim.
+
+\textbf{Cálculo de Primeira Pré-Imagem: }Não.
+
+\section{Construção Baseada em Emparelhamento Bilinear (Zhang) \cite{zhang}}
+
+Este esquema é proposto no mesmo artigo que o anterior e é uma forma
+alternativa de construir hash camaleão com emparelhamnento bilinear.
+
+\subsection{Funções}
+
+\textbf{KeyGen: }Exatamente como no esquema anterior, dado um grupo
+multiplicativo que é um grupo de Lacuna Diffie-Hellman, escolha um
+valor inteiro $s$ como chave privada e um valor $g^s$ pertencente ao
+grupo como chave pública.
+
+\textbf{Hash: } Aqui o método de cálculo da hash se dá pela fórmula:
+
+$$
+Hash(\mathcal{PK}=g^s, \mathcal{L}, m, r) = e(g, g^{\mathcal{H}(m)})e(g^{\mathcal{H}(\mathcal{L})}g^s, r)^{\mathcal{H}(m)}
+$$
+
+\textbf{FirstPreImage:} Não. Assim como no caso anterior, seria
+necessário resolver o problema do logaritmo discreto para implementar
+esta função.
+
+\textbf{UForge:} Para obtermos um novo valor $r'$ para um dado $m'$
+que tenha mesmo hash que $m$ e $r$ e quando conhecemos a chave privada
+$s$, aproveitamos as seguintes fórmulas:
+
+$$
+S_{ID} = g^{\frac{1}{s+\mathcal{H}(\mathcal{L})}}
+$$
+
+$$
+UForge(\mathcal{SK}=s, \mathcal{L}, m, r, m') = S_{ID}^{\mathcal{H}(m)-\mathcal{H}(m')^{\mathcal{H}(m')}}r^{\mathcal{H}(m)^{-1}} = r'
+$$
+
+Isso funciona pois se formos calcular o hash de $m'$ com este $r'$
+calculado, o resultado será:
+
+\begin{equation}
+\begin{split}
+  Hash(\mathcal{PK},\mathcal{L}, m', r') &= e(g, g)^{\mathcal{H}(m')}e(g^{\mathcal{H}(\mathcal{L})}g^s, r')^{\mathcal{H}(m')}\\
+  &= e(g, g)^{\mathcal{H}(m')}e(g^{\mathcal{H}(\mathcal{L})}g^s, S_{ID}^{\mathcal{H}(m)-\mathcal{H}(m')^{\mathcal{H}(m')^{-1}}}r^{\mathcal{H}(m)})^{\mathcal{H}(m')}\\
+  &= e(g, g)^{\mathcal{H}(m')}e(g^{\mathcal{H}(\mathcal{L})}g^s, S_{ID}^{\mathcal{H}(m)-\mathcal{H}(m')}r^{\mathcal{H}(m)})\\
+  &= e(g, g^{\mathcal{H}(m')})e(g^{\mathcal{H}(\mathcal{L})}g^s, g^{\frac{\mathcal{H}(m)-\mathcal{H}(m')}{s+\mathcal{H}(\mathcal{L})}}r^{\mathcal{H}(m)})\\
+&= e(g, g^{\mathcal{H}(m')})e(g^{\mathcal{H}(\mathcal{L})}g^s, g^{\frac{\mathcal{H}(m)-\mathcal{H}(m')}{s+\mathcal{H}(\mathcal{L})}})e(g^{\mathcal{H}(\mathcal{L})}g^s, r^{\mathcal{H}(m)})\\
+  &= e(g, g^{\mathcal{H}(m')})e(g, g^{\mathcal{H}(m)-\mathcal{H}(m')})e(g^{\mathcal{H}(\mathcal{L})}g^s, r^{\mathcal{H}(m)})\\
+  &= e(g, g^{\mathcal{H}(m')}g^{\mathcal{H}(m)-\mathcal{H}(m')})e(g^{\mathcal{H}(\mathcal{L})}g^s, r^{\mathcal{H}(m)})\\
+  &= e(g, g)^{\mathcal{H}(m)}e(g^{\mathcal{H}(\mathcal{L})}g^s, r)^{\mathcal{H}(m)}\\
+&= Hash(\mathcal{PK},\mathcal{L}, m, r)
+\end{split}
+\end{equation}
+
+\textbf{IForge:} Não está definida neste esquema. Poderia ser feito se
+uma forma de isolar $S_{ID} =
+g^{\frac{1}{s+\mathcal{H}(\mathcal{L})}}$ à partir de uma colisão
+fôsse encontrada.
+
+\subsection{Propriedades}
+
+\textbf{Resistência a Colisão: }Sim se assumirmos que é difícil
+calcular o logaritmo discreto e obter o valor $s$ da chave privada e
+que $\mathcal{L}$ não é reaproveitado em diferentes hashes camaleão.
+
+\textbf{Ocultação de Mensagem: }Não, pois uma função \textbf{IForge}
+não foi definida.
+
+\textbf{Livre de Exposição de Chave: } Sim.
+
+\textbf{Cálculo de Primeira Pré-Imagem: }Não.
+
+\section{Construção Baseada em Logaritmo Discreto de Chen (Chen)
+  \cite{chen}}
+
+O primeiro método baseado em logaritmo discreto proposto por Krawczyk
+tinha o grave problema de exposição de chaves. Este método foi criado
+precisamente para ser livre deste problema. Assim como o método
+anterior, ele requer que utilizemos um Grupo de Lacuna
+Diffie-Hellman. Nas construções anteriores, a principal vantagem de se
+utilizar tal grupo estava mais nas propriedades convenientes da função
+de emparelhamento bilinear. Neste método, o objetivo de usar tais
+grupos está realmente em explorar a vantagem de resolver o Problema de
+Decisão Diffie-Hellman como um teste de sanidade para o valor de $r$.
+
+\subsection{Funções}
+
+\textbf{KeyGen: }A chave pública é um valor $y=g^x$ senfo $g$ um
+gerador. A chave privada é o valor $x$.
+
+\textbf{Hash: }Neste esquema, podemos considerar o valor de $r$ como
+sendo uma tupla na seguinte forma:
+
+$$
+r = (g^a, y^a)
+$$
+
+Com ele calculamos o hash camaleão de acordo com a fórmula:
+
+$$
+Hash(\mathcal{PK}=y, \mathcal{L}, m, r) = (g\mathcal{L})^my^a
+$$
+
+Notar que o primeiro valor da tupla não é usado diretamente no cálculo
+da hash. Ele é usado para checar se realmente temos um valor de $r$
+válido que deve ser aceito. Para isso, basta verificarmos se $g$, $y$,
+$g^a$ e $y^a$ formam uma Tupla Diffie-Hellman ($(\lg y)(\lg g^a) =(\lg
+y^a)$).
+
+\textbf{FirstPreImage:} Não definida.
+
+\textbf{UForge:} Sendo o valor de $r$ uma tupla, ela pode ser obtida
+com:
+
+$$UForge(\mathcal{SK}=x, \mathcal{L}, m, r=(g^a,y^a), m') =
+\big(g^a(g\mathcal{L})^{\frac{m-m'}{x}}, y^a(g\mathcal{L})^{m-m'}\big) =
+(g^{a'}, y^{a'}) = r'
+$$
+
+Pode-se verificar que este valor é o correto, pois se o usarmos para o
+cálculo de uma hash obteremos:
+
+\begin{equation}
+\begin{split}
+  Hash(\mathcal{PK},\mathcal{L}, m', r') &= (g\mathcal{L})^{m'}y^{a'}\\
+  &= (g\mathcal{L})^{m'}y^{a}(g\mathcal{L})^{m-m'}\\
+  &= (g\mathcal{L})^{m}y^{a}\\
+  &= Hash(\mathcal{PK},\mathcal{L}, m, r)\\
+\end{split}
+\end{equation}
+
+\textbf{IForge:} Tendo-se uma colisão, podemos extrair o valor $T =
+(g\mathcal{L})^{x^{-1}}$ graças ao primeiro valor da tupla $r$ e $r'$:
+
+$$
+T = (g\mathcal{L})^{x^{-1}} = \left(\frac{g^a}{g^{a'}}\right)^{(m-m')^{-1}}
+$$
+
+Com este valor, pode-se obter uma função \textbf{IForge} escolhendo
+qualquer valor $m''$ e à partir dele calculando um novo $r''$:
+
+$$ IForge(\mathcal{PK}=g^x, \mathcal{L}, m, r=(g^a, y^a), m',
+r'=(g^{a'}, y^{a'})) = (m'', r''=(g^aT^{m-m''},
+y^{a}(g\mathcal{L})^{m-m''}))
+$$
+
+Isso também pode ser usado para demonstrar a segurança deste
+esquema. No artigo em que ele é proposto, prova-se que obter um valor
+$g^{a^{-1}}$ dado $g$ e $g^a$ é tão difícil quanto resolver o Problema
+Computacional Diffie-Hellman. Sendo assim, encontrar uma colisão sem o
+uso da chave privada neste esquema é também tão difícil quanto
+resolver uma instância do Problema Computacional Diffie-Hellman.
+
+\subsection{Propriedades}
+
+\textbf{Resistência a Colisão: }Sim se assumirmos que é difícil resolver o Problema COmputacional Diffie-Hellman.
+
+\textbf{Ocultação de Mensagem: }Sim.
+
+\textbf{Livre de Exposição de Chave: } Sim.
+
+\textbf{Cálculo de Primeira Pré-Imagem: }Não.
+
+\section{Construção Baseada em Assinatura de Nyberg-Rueppel (Ateniese e Medeiros) \cite{ateniese}}
+
+\subsection{Funções}
+
+\textbf{KeyGen: }Assim como no esquema de assinatura Nyberg–Rueppel em
+que este esquema se baseia, temos um grupo de inteiros módulo
+$p=2q+1$, sendo $p$ e $q$ primos. A chave pública é $(g, g^x)$. A
+chave privada é $x$. Os valores são sempre módulo $p$, exceto nos
+expoentes que são módulo $q$. Então a chave privada deve ser vista
+como um valor módulo $q$.
+
+\textbf{Hash: }Neste esquema, consideramos o $r$ como sendo uma tupla
+de dois valores aleatórios $(r_1, r_2)$. O hash é calculado então:
+
+$$
+Hash(m, (r_1, r_2)) = \left[r_1-(y^{\mathcal{H}(m, r_1)}g^{r_2} \mod p)\right] \mod q
+$$
+
+Assumindo $\mathcal{H}(m, r_1)$ como o cálculo de um hash
+criptográfico convencional da concatenação de $m$ e $r_1$.
+
+\textbf{FirstPreImage:} Não definida.
+
+\textbf{UForge:} A função pode ser definida gerando um $k$ aleatório
+módulo $q$ e obtendo:
+
+$$
+r_1' = \left[(Hash(m, (r_1, r_2)) + (g^k \mod p))\right] \mod q
+$$
+
+$$
+r_2 = \left[k-\mathcal{H}(m', r_1')x\right] \mod q
+$$
+
+Isso funciona, pois se formos usar tais valores para computar o hash
+da mensagem $m'$, obtemos:
+
+\begin{equation}
+\begin{split}
+  Hash(m', (r_1', r_2')) &= \left[r_1'-(y^{\mathcal{H}(m', r_1')}g^{r_2'} \mod p)\right] \mod q\\
+  &=\big[\left[(Hash(m, (r_1, r_2)) + (g^k \mod p))\right] \mod q\\
+    &\qquad-(y^{\mathcal{H}(m', r_1')}g^{[k-\mathcal{H}(m', r_1')x]} \mod p)\big] \mod q\\
+  &=\big[\left[(Hash(m, (r_1, r_2)) + (g^k \mod p))\right] \mod q\\
+    &\qquad-(g^{x\mathcal{H}(m', r_1')}g^{[k-\mathcal{H}(m', r_1')x]} \mod p)\big] \mod q\\
+  &= Hash(m, (r_1, r_2)) + g^k - g^k \mod q\\
+  &= Hash(m, (r_1, r_2))
+\end{split}
+\end{equation}
+
+\textbf{IForge: }Não definida.
+
+\subsection{Propriedades}
+
+\textbf{Resistência a Colisão: }Sim se assumirmos que é seguro usar
+duas vezes variações do esquema de assinatura de Nyberg-Rueppel. O
+artigo que apresenta este método cita uma referência que teria provado
+isso.
+
+\textbf{Ocultação de Mensagem: }Não.
+
+\textbf{Livre de Exposição de Chave: }Sim.
+
+\textbf{Cálculo de Primeira Pré-Imagem: }Não.
+
+\section{Construção Baseada em Diffie-Hellman \cite{ateniese}}
+
+\subsection{Funções}
+
+\textbf{KeyGen: }Em um grupo que é de Lacuna Diffie-Hellman, escolha
+um gerador $g$ e como chave pública um elemento $y=g^x$, sendo o
+inteiro $x$ a chave privada.
+
+\textbf{Hash: }Use a seguinte função para o cálculo de hash:
+
+$$
+Hash(\mathcal{L}, m, r) = g^{\mathcal{H}(m)}(g^{\mathcal{H}(\mathcal{L})}y)^r
+$$
+
+O valor pode ser conferido rapidamente observando que $(g^r,
+yg^{\mathcal{H}(\mathcal{L})}, Hash(\mathcal{L}, m,
+r)/g^{\mathcal{H}(m)})$ é uma Tripla Diffie-Hellman.
+
+\textbf{FirstPreImage:} Não definida.
+
+\textbf{UForge:} A pode ser obtida baseando-se na seguinte equação:
+
+$$
+g^{r'}=g^rg^{\frac{\mathcal{H}(m)-\mathcal{H}(m')}{x+\mathcal{H}(\mathcal{L})}}
+$$
+
+E isso permite obter o valor $r'$ desejado:
+
+$$
+UForge(\mathcal{SK}=x, \mathcal{L}, m, r, m') = r + \frac{\mathcal{H}(m)-\mathcal{H}(m')}{x+\mathcal{H}(\mathcal{L})} = r'
+$$
+
+Isso funciona, pois:
+
+\begin{equation}
+\begin{split}
+  Hash(\mathcal{L}, m', r') &= g^{\mathcal{H}(m')}(g^{\mathcal{H}(\mathcal{L})}y)^{r'}\\
+  &=g^{\mathcal{H}(m')}(g^{\mathcal{H}(\mathcal{L})}y)^{r + \frac{\mathcal{H}(m)-\mathcal{H}(m')}{x+\mathcal{H}(\mathcal{L})}}\\
+  &=g^{\mathcal{H}(m')}(g^{\mathcal{H}(\mathcal{L})}y)^{r}(g^{\mathcal{H}(\mathcal{L})}y)^{\frac{\mathcal{H}(m)-\mathcal{H}(m')}{x+\mathcal{H}(\mathcal{L})}}\\
+  &=g^{\mathcal{H}(m')}(g^{\mathcal{H}(\mathcal{L})}g^x)^{r}(g^{\mathcal{H}(\mathcal{L})}g^x)^{\frac{\mathcal{H}(m)-\mathcal{H}(m')}{x+\mathcal{H}(\mathcal{L})}}\\
+  &=g^{\mathcal{H}(m')}(g^{\mathcal{H}(\mathcal{L})}g^x)^{r}g^{\frac{(x+\mathcal{H}(\mathcal{L}))(\mathcal{H}(m)-\mathcal{H}(m'))}{x+\mathcal{H}(\mathcal{L})}}\\
+  &=g^{\mathcal{H}(m')}(g^{\mathcal{H}(\mathcal{L})}g^x)^{r}g^{\mathcal{H}(m)-\mathcal{H}(m')}\\
+  &=g^{\mathcal{H}(m)}(g^{\mathcal{H}(\mathcal{L})}g^x)^{r}\\
+  &=g^{\mathcal{H}(m)}(g^{\mathcal{H}(\mathcal{L})}y)^{r}\\
+  &=Hash(\mathcal{L}, m, r)\\
+\end{split}
+\end{equation}
+
+\textbf{IForge:} Tendo-se acesso à uma colisão, pode-se usar as
+fórmulas anteriores para extrair o valor
+$g^{\frac{1}{x+\mathcal{H}(m)}}$:
+
+$$
+\left(\frac{g^{r'}}{g^r}\right)^{[\mathcal{H}(m)-\mathcal{H}(m')]^{-1}} = g^{\frac{1}{x+\mathcal{H}(m)}}
+$$
+
+
+Com este valor, mesmo sem conhecermos o valor de $x$ podemos calcular
+um valor correspondente de $r''$ para qualquer novo $m''$ sem
+precisarmos conhecer a chave privada $x$.
+
+\subsection{Propriedades}
+
+\textbf{Resistência a Colisão: }Sim. O artigo que propõe o esquema
+argumenta que mesmo quando conhecemos vários valores diferentes para
+$g^{\frac{1}{x+\mathcal{H}(m)}}$ em diferentes valores de
+$\mathcal{L}$ isso não enfraquece o esquema, usando como referência
+algo demonstrado em outro artigo.
+
+\textbf{Ocultação de Mensagem: }Sim.
+
+\textbf{Livre de Exposição de Chave: }Sim.
+
+\textbf{Cálculo de Primeira Pré-Imagem: }Não.
+
+\section{Construção Baseada em Criptossistema de Pallier (Ateniese e Medeiros) \cite{ateniese}}
+
+Essa construção se baseia na propriedade demonstrada por
+Paillier\cite{paillier} de que a função abaixo, para qualquer $h \in
+\mathbb{Z}^*_{n^2}$, $a\in\mathbb{Z}_n$, $b\in\mathbb{Z}^*_{n^2}$ é
+uma função de permutação com trapdoor:
+
+$$
+f(a, b) = h^aqb^n \mod n^2
+$$
+
+Ou seja, ela pode ser invertida por qualquer um que conheça um segredo
+associado à função (no caso, os fatores de $n$) e além disso ela é uma
+função de permutação.
+
+\subsection{Funções}
+
+\textbf{KeyGen: } Escolha dois primos grandes $p$ e $q$ como chave
+privada. E a multiplicação deles $n=pq$ é a chave pública.
+
+\textbf{Hash: } Assumindo que $\mathcal{H}$ é uma função hash
+criptográfica que tem como codomínio valores em $\mathbb{Z}^*_{n^2}$,
+que o nossa mensagem $m$ foi previamente transformada por alguma
+função hash com codomínio em $\mathbb{Z}^*_{n}$ e que $r = (r_1,
+r_2)$, nossa função de hash camaleão é:
+
+$$
+Hash(\mathcal{L}, m, (r_1, r_2)) = (1 +mn)\mathcal{H}(\mathcal{L})^{r_1}r_2^n \pmod{n^2}
+$$
+
+\textbf{FirstPreImage:} Essa função torna-se possível graças à função
+de permutação com trapdoor ($f$) associada aos criptossistemas de
+Paillier. Primeiro escolhemos a função $f$ específica para
+$h=\mathcal{H}(\mathcal{L})$. Com ajuda dela, obtemos a primeira
+pré-imagem da seguinte maneira:
+
+$$
+FirstPreImage(\mathcal{SK}, m', C) = f^{-1}(C(1-m'n)) = (r_1', r_2')
+$$
+
+Isso funciona, pois geramos valores $r_1'$ e $r_2'$ tais que:
+
+\begin{equation}
+\begin{split}
+  f(r_1', r_2') &= C(1-m'n)\\
+  \mathcal{H}(\mathcal{L})^{r_1'}r_2'^n &\equiv C(1-m'n) \pmod{n^2}\\
+\end{split}
+\end{equation}
+
+Então se passarmos os valores $m'$, $r_1'$ e $r_2'$ para a função de
+hash camaleão, obtemos:
+
+\begin{equation}
+\begin{split}
+  Hash(\mathcal{L}, m', (r_1', r_2')) &\equiv (1+m'n)\mathcal{H}(\mathcal{L})^{r_1'}r_2'^n \pmod{n^2}\\
+  &\equiv (1+m'n)C(1-m'n) \pmod{n^2}\\
+  &\equiv C(1^2+m'^2n^2) \pmod{n^2}\\
+  &\equiv C \pmod{n^2}\\
+\end{split}
+\end{equation}
+
+\textbf{UForge:} Como temos uma função qu calcula a primeira
+pré-imagem, a função $UForge$, que calcuma uma segunda pré-imagem é
+trivialmente definida bastando usar a função $FirstPreImage$ e passar
+para ela o valor de $Hash(\mathcal{L}, m, (r_1, r_2))$.
+
+\textbf{IForge: }
+
+TODO
+
+\section{Construção Baseada em Assinatura de Schnorr (Wei Gao) \cite{wei}}
+
+Esta construção, embora tenha sido obtida pelo seu autor modificando
+um esquema de assinatura de Schnorr, é bastante semelhante à
+construção já vista na seção 9 (Construção baseada em Diffie Hellman),
+com a diferença de que o valor $r$ é um par $(r_1, r_2)$ e com os
+expoentes posicionados de maneira diferente, mas equivalente.
+
+Mas uma diferença importante é que com ela sabe-se como calcular a
+primeira pré-imagem do hash camaleão de posse do \textit{trapdoor}.
+
+\subsection{Funções}
+
+\textbf{KeyGen: } Em um grupo $G$ de ordem prima $q$, com gerador
+$g$, onde calcular o logaritmo discreto é difícil, escolha um inteiro
+$x$ como chave privada e um valor $y=g^x$ como chave pública.
+
+\textbf{Hash: } O cálculo do hash camaleão é feito com a ajuda de um
+hash criptográfico convencional $\mathcal{H}$ e com $r=(r_1, r_2)$:
+
+$$
+Hash(\mathcal{PK}, \mathcal{L}, m, (r_1, r_2)) =
+g^m(g^{r_1}y^{\mathcal{H}(\mathcal{L})})^{r_2}
+$$
+
+\textbf{FirstPreImage:} Dado o hash camaleão $C$ e uma mensagem $m$,
+podemos obter valores $(r_1, r_2)$
+
+TODO
+
+\section{Conclusão}
+
+Em resumo, estas são as propriedades dos esquemas apresentados aqui,
+de acordo com no número da seção em que eles aparecem:
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|} 
+  \hline
+  Esquema&Sem exposição de chave&Ocultação de mensagem&1$^{\rm a}$ pré-imagem\\
+  \hline
+  2&X&\ok&\ok\\
+  \hline
+  3&X&\ok&X\\
+  \hline
+  4&\ok&\ok&X\\
+  \hline
+  5&\ok&X&X\\
+  \hline
+  6&\ok&X&X\\
+  \hline
+  7&\ok&\ok&X\\
+  \hline
+  8&\ok&X&X\\
+  \hline
+  9&\ok&\ok&X\\
+  \hline
+  10&\ok&\ok&\ok\\
+  \hline
+  11&\ok&\ok&\ok\\
+  \hline
+\end{tabular}
+\end{center}
+
+Nota-se que o único esquema acima que apresenta a propriedade de
+encontrar a primeira pré-imagem com a chave privada do hash foi o
+primeiro apresentado. Embora esse esquema tenha a grave falha de expor
+a chave diante de colisões, isso se dá principalmente devido à função
+de permutação escolhida. Analizando o artigo, me parece que a escolha
+de outras funções de permutação, tais como o próprio RSA livraria o
+esquema de tal falha e permitiria que tal propriedade pudesse ser
+explorada.
+
+Os dois primeiros esquemas são livres da ocultação de mensagem somente
+porque qualquer esquema que exponha a chave privada diante de uma
+colisão tem tal propriedade como efeito colateral da exposição da
+chave privada.
+
+Nota-se que a maioria dos esquemas propostos é obtida combinando
+esquemas de assinatura e criptografia assimétricos, onde funções de
+assinar e cifrar são inversas entre si, junto com operações adicionais
+envolvendo o valor complementar de $r$ de modo a obter as propriedades
+desejadas. O primeiro esquema apresentado é uma notável exceção e ele
+também nos apresenta a possibilidade de obtermos um hash camaleão à
+partir de pares de funções de permutação que podem ser invertidas com
+trapdoor e onde é difícl calcular valores para os quais ambas as
+funções nos dão o mesmo resultado.
+
+Existem outras construções possíveis que podem ser encontradas na
+literatura e não foram analizadas aqui. Na literatura também podemos
+encontrar sugestões de aplicação de hashes camaleão em protocolos que
+tentam preservar privacidade de agentes, em aplicações envolvendo
+assinaturas sanitizáveis, assinaturas camaleão e certificados
+dinâmicos. Também existem propostas de construções de hashes camaleão
+onde pode existir mais de uma chave privada diferente, com qualquer
+uma delas podendo ser usada para obter colisão, e também propostas que
+condicionam encontrar colisões à posse de duas chaves diferentes, que
+poderiam pertencer à diferentes entidades.
+
+\bibliography{report}{}\bibliographystyle{plain}
+
+\end{document}
