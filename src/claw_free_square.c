@@ -1,93 +1,150 @@
 #include <stdio.h>
 #include <gmp.h>
+#include <bsd/stdlib.h>
+#include <string.h>
+#include "mod_math.h"
 
- #define mpz_rshift(A,B,l) mpz_tdiv_q_2exp(A, B, l)
+typedef mpz_t PT;
+typedef mpz_t PPK;
+typedef mpz_t PSK[2];
 
-typedef mzp_t PT;
-typedef mzp_t PPK;
-typedef mzp_t PSK[2];
+#define copyPT(dst, src) mpz_init_set(*dst, src)
 
-int _root(mpz_t result, const mpz_t arg, const mpz_t prime){
-  mpz_t y, b, t;
-  unsigned int r, m;
-  if (mpz_divisible_p(arg, prime)) {
-    mpz_set_ui(result, 0);
-    return 1;
-  }
-  if (mpz_legendre(arg, prime) == -1)
-    return -1;
-  mpz_init(b);
-  mpz_init(t);     
-  mpz_init_set_ui(y, 2);
-  while(mpz_legendre(y, prime) != -1)
-    mpz_add_ui(y, y, 1);
-  mpz_sub_ui(result, prime, 1);
-  r = mpz_scan1(result, 0);
-  mpz_rshift(result, result, r); 
-  mpz_powm(y, y, result, prime);   
-  mpz_rshift(result, result, 1);
-  mpz_powm(b, arg, result, prime); 
-  mpz_mul(result, arg, b);
-  mpz_mod(result, result, prime);  
-  mpz_mul(b, result, b);
-  mpz_mod(b, b, prime);  
-  while(mpz_cmp_ui(b, 1)){   
-    mpz_mul(t, b, b);
-    mpz_mod(t, t, prime);
-    for(m = 1; mpz_cmp_ui(t, 1); m++){
-      mpz_mul(t, t, t);
-      mpz_mod(t, t, prime);
-    }
-    mpz_set_ui(t, 0);
-    mpz_setbit(t, r - m - 1);
-    mpz_powm(t, y, t, prime); 
-    mpz_mul(y, t, t);
-    r = m;
-    mpz_mul(result, result, t);
-    mpz_mod(result, result, prime);
-    mpz_mul(b, b, y);
-    mpz_mod(b, b, prime);
-  }
-  mpz_clear(y);
-  mpz_clear(b);
-  mpz_clear(t);
-  return 1;
+void PermutationKeyGen(unsigned n, PPK ppk, PSK psk){
+  // Private key: p, q primes such as p = 3 (mod 8) and q = 7 (mod 8).
+  // Public key: pq
+  // n is the number of bits of pq.
+  unsigned long size_p, size_q;
+  char *string;
+  int i;
+  mpz_t mod;
+  mpz_init(psk[0]);
+  mpz_init(psk[1]);
+  mpz_init(ppk);
+  mpz_init(mod);
+  size_p = n / 2;
+  size_q = (n+1) / 2;
+  string = (char *) malloc(size_p + 1);
+  do{ // Generating p
+    string[0] = '1';
+    for(i = 1; i < size_p; i ++)
+      if(arc4random_uniform(2))
+	string[i] = '1';
+      else
+	string[i] = '0';
+    string[size_p] = '\0';
+    mpz_set_str(psk[0], string, 2);
+    mpz_mod_ui(mod, psk[0], 8);
+  }while(mpz_probab_prime_p(psk[0], 50) <= 0 && mpz_get_ui(mod) != 3);
+  free(string);
+  string = (char *) malloc(size_q + 1);
+  do{ // Generating q
+    string[0] = '1';
+    for(i = 1; i < size_q; i ++)
+      if(arc4random_uniform(2))
+	string[i] = '1';
+      else
+	string[i] = '0';
+    string[size_q] = '\0';
+    mpz_set_str(psk[0], string, 2);
+    mpz_mod_ui(mod, psk[0], 8);
+  }while(mpz_probab_prime_p(psk[0], 50) <= 0 && mpz_get_ui(mod) != 7);
+  free(string);
+  // Getting public key:
+  mpz_mul(ppk, psk[0], psk[1]);
+  mpz_set(psk[2], ppk);
 }
 
-
 // Permutation 0: x^2 mod q
-PT P0(PPK mod, PT x){
-  mpz_t result;
-  mpz_init(result);
-  mpz_mul(result, x, x);
-  mpz_tdiv_q(result, result, mod);
-  return result;
+void P0(PPK mod, PT x, PT *result){
+  mpz_mul(*result, x, x);
+  mpz_tdiv_q(*result, *result, mod);
 }
 
 // Permutation 1: 4x^2 mod q
-PT P1(PPK mod, PT x){
-  mpz_t result, four;
-  mpz_init(result);
+void P1(PPK mod, PT x, PT *result){
+  mpz_t four;
   mpz_init(four);
-  mpz_mul(result, x, x);
-  mpz_mul(result, result, four);
-  mpz_tdiv_q(result, result, mod);
+  mpz_mul(*result, x, x);
+  mpz_mul(*result, *result, four);
+  mpz_tdiv_q(*result, *result, mod);
   mpz_clear(four);
-  return result;
 }
 
 // Inverse of P0: sqrt(x)
-PT iP0(PSK psk, PT x){
-  mpz_t f0 = psk[0]; // Factor 0
-  mpz_t f1 = psk[1]; // Factor 1
+void iP0(PSK psk, PT x, PT *result){
+  mpz_t f0, f1, n;
+  copyPT(&f0, psk[0]);
+  copyPT(&f1, psk[1]);
   mpz_t root0, root1;
   // Obtaining two roots module p and q:
-  _root(root0, x, f0);
-  _root(root1, x, f1);
+  root_mod(root0, x, f0);
+  root_mod(root1, x, f1);
   // Combining the results with the chinese remainder theorem
-  return result;
+  {
+    mpz_t prod, sum, p, inv;
+    mpz_init(prod);
+    mpz_init(sum);
+    mpz_init(p);
+    mpz_init(inv);
+    mpz_mul(prod, f0, f1);
+    
+    mpz_divexact(p, prod, f0);
+    mpz_invert(inv, p, f0);
+    mpz_mul(p, p, inv);
+    mpz_mul(p, p, root0);
+    mpz_add(sum, sum, p);
+
+    mpz_divexact(p, prod, f1);
+    mpz_invert(inv, p, f1);
+    mpz_mul(p, p, inv);
+    mpz_mul(p, p, root1);
+    mpz_add(sum, sum, p);
+
+    //mpz_divexact(p, prod, n);
+    //mpz_invert(inv, p, n);
+    //mpz_mul(p, p, inv);
+    //mpz_mul(p, p, x);
+    //mpz_sum(sum, sum, p);
+    mpz_tdiv_q(*result, sum, prod);
+    mpz_clear(p);
+    mpz_clear(sum);
+    mpz_clear(prod);
+    mpz_clear(inv);
+  }
+}
+
+// Inverse of P1: sqrt(x)/2
+void iP1(PSK psk, PT x, PT *result){
+  mpz_t f0, f1;
+  iP0(psk, x, result);
+  mpz_divexact_ui(*result, *result, 2);
 }
 
 
 #include "claw_free_permutations_chameleon_hash.h"
 
+int main(int argc, char **argv){
+  PAIR_OF_KEYS pksk;
+  PK pk;
+  SK sk;
+  char *string1, *string2;
+  struct chameleon_hash_scheme *CH = new_chameleon_hash_scheme();
+  pksk = CH -> KeyGen(10);
+  pk = pksk -> pk;
+  sk = pksk -> sk;
+  free(pksk);
+  string1 = mpz_get_str(NULL, 10, sk -> psk[0]);
+  string2 = mpz_get_str(NULL, 10, sk -> psk[1]);
+  printf("SK = (%s, %s)\n", string1, string2);
+  free(string1);
+  free(string2);
+  string1 = mpz_get_str(NULL, 10, pk -> ppk);
+  printf("PK = %s\n", string1);
+  free(string1);
+  // ...
+  free(pk);
+  free(sk);
+  free(CH);
+  return 0;
+}

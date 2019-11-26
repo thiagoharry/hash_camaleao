@@ -2,54 +2,57 @@
 #define _CLAW_FREE_CHAMELEON_HASH_
 
 #include <stdlib.h>
+#include <string.h>
 
 // Please, define the following elements before including this file:
 // PT:  The type of the permutations domain
 // PPK: Permutation public key
 // PSK: Permutation secret key
-// P0:  (PPK, PT) -> PT a first permutation given a public key
-// P1:  (PPK, PT) -> PT a second permutation claw-free with the first
-// iP0: (PSK, PT) -> PT The inverse of P1
-// iP1: (PSK, PT) -> PT The inverse of P2
+// P0:  (PPK, PT, PT *) a first permutation given a public key
+// P1:  (PPK, PT, PT *) a second permutation claw-free with the first
+// iP0: (PSK, PT, PT *) The inverse of P1
+// iP1: (PSK, PT, PT *) The inverse of P2
+// void copyPT(PT *, PT) Copy a PT value
+// void PermutationKeyGen(unsigned, &PPK, &PSK): Creates permutation keys
 
-typedef char * MSG;
+typedef char *MSG;
 typedef PT RND;
 typedef PT DIGEST;
 
-typedef struct{
+typedef struct _PK{
   unsigned n; // Security parameter
-  PPK -> ppk; // Permutation public key
-  RND (*P0)(PPK, RND);
-  RND (*P1)(PPK, RND);
-} _PK *PK;
+  PPK ppk; // Permutation public key
+  void (*P0)(PPK, PT, PT *);
+  void (*P1)(PPK, PT, PT *);
+} *PK;
 
-typedef struct{
+typedef struct _SK{
   unsigned n; // Security parameter
   PK pk; // Associated public key
   PSK psk; // Permutation secret key
-  RND (*iP0)(SSK, RND);
-  RND (*iP1)(SSK, RND);
-} _SK *SK;
+  void (*iP0)(PSK, PT, PT *);
+  void (*iP1)(PSK, PT, PT *);
+} *SK;
 
-typedef struct{
+typedef struct _PAIR_OF_KEYS{
   PK pk;
   SK sk;
-} _PAIR_OF_KEYS *PAIR_OF_KEYS;
+} *PAIR_OF_KEYS;
 
 #include "chameleon_hash.h"
 
-PAIR_OF_KEYS *_KeyGen(unsigned n){
+PAIR_OF_KEYS _KeyGen(unsigned n){
   SK sk = NULL;
   PK pk = NULL;
-  PAIR_OF_KEYS pair = (PAIR_OF_KEYS) malloc(sizeof(_PAIR_POF_KEYS));
+  PAIR_OF_KEYS pair = (PAIR_OF_KEYS) malloc(sizeof(struct _PAIR_OF_KEYS));
   if(pair == NULL)
     return NULL;
-  sk = (SK) malloc(sizeof(_SK));
+  sk = (SK) malloc(sizeof(struct _SK));
   if(sk == NULL){
     free(pair);
     return NULL;
   }
-  pk = (PK) malloc(sizeof(_PK));
+  pk = (PK) malloc(sizeof(struct _PK));
   if(pk == NULL){
     free(pair);
     free(sk);
@@ -61,64 +64,50 @@ PAIR_OF_KEYS *_KeyGen(unsigned n){
   sk -> iP0 = iP0;
   sk -> iP1 = iP1;
   sk -> pk = pk;
+  PermutationKeyGen(n, pk -> ppk, sk -> psk);
   pair -> pk = pk;
   pair -> sk = sk;
   return pair;
 }
 
-DIGEST _Hash(PK pk, MSG msg, RND rnd){
-  char *p = MSG;
-  DIGEST digest = rnd;
+DIGEST *_Hash(PK pk, MSG msg, RND rnd){
+  char *p = msg;
+  DIGEST *digest = (DIGEST *) malloc(sizeof(DIGEST));
+  copyPT(digest, rnd);
   while(*p != '\0'){
     char c = *p;
-    digest = ((c / 128)?(pk -> P1(digest)):(pk -> P0(pk -> ppk, digest)));
-    c = c << 1;
-    digest = ((c / 128)?(pk -> P1(digest)):(pk -> P0(pk -> ppk, digest)));
-    c = c << 1;
-    digest = ((c / 128)?(pk -> P1(digest)):(pk -> P0(pk -> ppk, digest)));
-    c = c << 1;
-    digest = ((c / 128)?(pk -> P1(digest)):(pk -> P0(pk -> ppk, digest)));
-    c = c << 1;
-    digest = ((c / 128)?(pk -> P1(digest)):(pk -> P0(pk -> ppk, digest)));
-    c = c << 1;
-    digest = ((c / 128)?(pk -> P1(digest)):(pk -> P0(pk -> ppk, digest)));
-    c = c << 1;
-    digest = ((c / 128)?(pk -> P1(digest)):(pk -> P0(pk -> ppk, digest)));
-    c = c << 1;
-    digest = ((c / 128)?(pk -> P1(digest)):(pk -> P0(pk -> ppk, digest)));
+    int i;
+    for(i = 0; i < 8; i ++){
+      (c / 128)?(pk -> P1(pk -> ppk, *digest, digest)):
+	(pk -> P0(pk -> ppk, *digest, digest));
+      c = c << 1;
+    }
     p ++;
   }
   return digest;
 }
 
-RND _FirstPreImage(SK sk, MSG msg, DIGEST digest){
-  char *p = MSG;
+RND *_FirstPreImage(SK sk, MSG msg, DIGEST digest){
+  char *p = msg;
+  RND *result = (RND *) malloc(sizeof(RND));
+  copyPT(result, digest);
   while(*p != '\0') p ++;
   while(p != msg){
     char c = *p;
-    digest = ((c % 2)?(sk -> iP1(digest)):(sk -> iP0(digest)));
-    c = c >> 1;
-    digest = ((c % 2)?(sk -> iP1(digest)):(sk -> iP0(digest)));
-    c = c >> 1;
-    digest = ((c % 2)?(sk -> iP1(digest)):(sk -> iP0(digest)));
-    c = c >> 1;
-    digest = ((c % 2)?(sk -> iP1(digest)):(sk -> iP0(digest)));
-    c = c >> 1;
-    digest = ((c % 2)?(sk -> iP1(digest)):(sk -> iP0(digest)));
-    c = c >> 1;
-    digest = ((c % 2)?(sk -> iP1(digest)):(sk -> iP0(digest)));
-    c = c >> 1;
-    digest = ((c % 2)?(sk -> iP1(digest)):(sk -> iP0(digest)));
-    c = c >> 1;
-    digest = ((c % 2)?(sk -> iP1(digest)):(sk -> iP0(digest)));
+    int i;
+    for(i = 0; i < 8; i ++){
+      (c % 2)?(sk -> iP1(sk -> psk, *result, result)):
+	(sk -> iP0(sk -> psk, *result, result));
+      c = c >> 1;
+    }
     p --;
   }
-  return digest;
+  return result;
 }
 
-RND _Collision(SK sk, MSG msg, RND rnd, MSG msg2){
-  DIGEST digest = _Hash(sk -> pk, msg, rnd);
-  RND result = _FirstPreImage(sk, msg2, digest);
+RND *_Collision(SK sk, MSG msg, RND rnd, MSG msg2){
+  DIGEST *digest = _Hash(sk -> pk, msg, rnd);
+  RND *result = _FirstPreImage(sk, msg2, *digest);
   return result;
 }
 

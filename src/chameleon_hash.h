@@ -11,13 +11,13 @@
 
 // A chameleon hash scheme is defined by 3 algorithms:
 struct chameleon_hash_scheme{
-  PAIR_OF_KEYS *(*KeyGen)(unsigned);
-  DIGEST (*Hash)(PK, MSG, RND);
-  RND (*Collision)(SK, MSG, RND, MSG);
+  PAIR_OF_KEYS (*KeyGen)(unsigned);
+  DIGEST *(*Hash)(PK, MSG, RND);
+  RND *(*Collision)(SK, MSG, RND, MSG);
   // The following functions are optional and you should check if they
   // are null before using:
   void (*IForge)(PK, MSG, RND, MSG, RND, MSG *, RND *);
-  RND (*FirstPreImage)(SK, MSG, DIGEST);
+  RND *(*FirstPreImage)(SK, MSG, DIGEST);
 };
 
 #endif
