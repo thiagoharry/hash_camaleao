@@ -81,6 +81,7 @@ e Medeiros, com uma última adicional:
   camaleão $CH$ se para qualquer algoritmo eficiente $\mathcal{A}$, a
   probabilidade do experimento abaixo retornar 1 é negligível:
 
+  \noindent
   \begin{algorithm}[H]
     \SetAlgoLined
     \SetKwInOut{Input}{Entrada}\SetKwInOut{Output}{Saída}
@@ -90,7 +91,7 @@ e Medeiros, com uma última adicional:
       $\textbf{KeyGen}($1^n$)\; $(m, r, m', r') \leftarrow
       \mathcal{A}(\mathcal{PK})$\; {\eIf{$Hash(\mathcal{PK}, m, r) =
           Hash(\mathcal{PK}, m', r')$ \textbf{e} $(m, r) \neq (m',
-          r')$} {\textbf{retorne} 1} {\textbf{retorne} 0} } }\textbf{Fim}
+          r')$} {\textbf{retorne} 1\;} {\textbf{retorne} 0\;} } }\textbf{Fim}
   \end{algorithm}
   
 \item\textbf{Segurança Semântica: }O valor de um hash não deve
@@ -101,6 +102,28 @@ e Medeiros, com uma última adicional:
   $r$. Desta forma, conhecer o valor do hash não interfere na
   probabilidade de acertarmos qual mensagem foi escolhida para gerar
   um hash.
+
+  Formalmente, a propriedade pode ser definida para um esquema de hash
+  camaleão $CH$ se para todo algoritmo eficiente $\mathcal{A}$, dada a
+  linguagem $L$ formada por todas as mensagens distintas que podem ser
+  passadas para a função Hash, a probabilidade do experimento abaixo
+  retornar 1 é negligivelmente próxima de $1/|L|$:
+
+  \noindent
+  \begin{algorithm}[H]
+    \SetAlgoLined
+    \SetKwInOut{Input}{Entrada}\SetKwInOut{Output}{Saída}
+    \SetKwFunction{FMain}{SemanticSecurity$_\mathcal{A}^{CH}$}
+    \SetKwProg{Fn}{Experimento}{:}{} \Fn{\FMain{$n$}}{
+      $(\mathcal{PK},\mathcal{SK}) \leftarrow$\textbf{KeyGen}($1^n$)\;
+      $m\leftarrow^{\$}L$\;
+      $C\leftarrow Hash(\mathcal{PK}, m, r)$\;
+      $m'\leftarrow\mathcal{A}(\mathcal{PK}, C)$\;
+      {\eIf{$m = m'$} {\textbf{retorne} 1\;} {\textbf{retorne} 0\;} }
+    }
+  \end{algorithm}
+
+  
 \item\textbf{Ocultação de Mensagem: }Essa propriedade se refere à
   existência da função \textbf{IForge} acima. Isso é o que permite que
   quando as hashes camaleão são usadas no contexto de assinaturas, se

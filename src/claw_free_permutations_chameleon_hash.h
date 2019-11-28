@@ -14,6 +14,10 @@
 // iP1: (PSK, PT, PT *) The inverse of P2
 // void copyPT(PT *, PT) Copy a PT value
 // void PermutationKeyGen(unsigned, &PPK, &PSK): Creates permutation keys
+// void FreePermutationKeys(PSK, PPK): frees the permutation keys
+// PT *_RandomPT(PPK) A random PT given a PPK
+// void FreePT(PT *) Frees a PT memory
+
 
 typedef char *MSG;
 typedef PT RND;
@@ -70,45 +74,54 @@ PAIR_OF_KEYS _KeyGen(unsigned n){
   return pair;
 }
 
-DIGEST *_Hash(PK pk, MSG msg, RND rnd){
-  char *p = msg;
+DIGEST *_Hash(PK pk, MSG msg, unsigned msg_size, RND rnd){
+  int i, j;
   DIGEST *digest = (DIGEST *) malloc(sizeof(DIGEST));
   copyPT(digest, rnd);
-  while(*p != '\0'){
-    char c = *p;
-    int i;
-    for(i = 0; i < 8; i ++){
+  for(i = 0; i < msg_size; i ++){
+    uint8_t c = msg[i];
+    for(j = 0; j < 8; j ++){
+      printf("P%d: %lu -> ", (c/128), mpz_get_ui(*digest));
       (c / 128)?(pk -> P1(pk -> ppk, *digest, digest)):
 	(pk -> P0(pk -> ppk, *digest, digest));
+      printf("%lu\n", mpz_get_ui(*digest));
       c = c << 1;
     }
-    p ++;
   }
   return digest;
 }
 
-RND *_FirstPreImage(SK sk, MSG msg, DIGEST digest){
-  char *p = msg;
-  RND *result = (RND *) malloc(sizeof(RND));
+void _FirstPreImage(SK sk, MSG msg, unsigned msg_size, DIGEST digest,
+		    RND *result){
+  int i, j;
   copyPT(result, digest);
-  while(*p != '\0') p ++;
-  while(p != msg){
-    char c = *p;
-    int i;
-    for(i = 0; i < 8; i ++){
+  for(i = msg_size - 1; i >= 0; i --){ 
+    char c = msg[i];
+    for(j = 0; j < 8; j ++){
+      printf("iP%d: %lu -> ", (c%2), mpz_get_ui(*result));
       (c % 2)?(sk -> iP1(sk -> psk, *result, result)):
 	(sk -> iP0(sk -> psk, *result, result));
+      printf("%lu\n", mpz_get_ui(*result));
       c = c >> 1;
     }
-    p --;
   }
-  return result;
 }
 
-RND *_Collision(SK sk, MSG msg, RND rnd, MSG msg2){
-  DIGEST *digest = _Hash(sk -> pk, msg, rnd);
-  RND *result = _FirstPreImage(sk, msg2, *digest);
-  return result;
+void _Collision(SK sk, MSG msg, unsigned msg_size, RND rnd, MSG msg2, RND *r){
+  DIGEST *digest = _Hash(sk -> pk, msg, msg_size, rnd);
+  _FirstPreImage(sk, msg2, msg_size, *digest, r);
+  FreePT(digest);
+}
+
+void _FreePairOfKeys(PAIR_OF_KEYS pksk){
+  FreePermutationKeys(pksk -> sk -> psk, pksk -> pk -> ppk);
+  free(pksk -> sk);
+  free(pksk -> pk);
+  free(pksk);
+}
+
+void _RandomR(PK pk, RND *rnd){
+  _RandomPT(pk -> ppk, rnd);
 }
 
 struct chameleon_hash_scheme *new_chameleon_hash_scheme(void){
@@ -120,6 +133,8 @@ struct chameleon_hash_scheme *new_chameleon_hash_scheme(void){
   new -> KeyGen = _KeyGen;
   new -> Hash = _Hash;
   new -> FirstPreImage = _FirstPreImage;
+  new -> FreePairOfKeys = _FreePairOfKeys;
+  new -> RandomR = _RandomR;
   new -> Collision = _Collision;
   new -> IForge = NULL;
   return new;
