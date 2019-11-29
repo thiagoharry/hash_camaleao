@@ -81,10 +81,10 @@ DIGEST *_Hash(PK pk, MSG msg, unsigned msg_size, RND rnd){
   for(i = 0; i < msg_size; i ++){
     uint8_t c = msg[i];
     for(j = 0; j < 8; j ++){
-      printf("P%d: %lu -> ", (c/128), mpz_get_ui(*digest));
+      //printf("P%d: %lu -> ", (c/128), mpz_get_ui(*digest));
       (c / 128)?(pk -> P1(pk -> ppk, *digest, digest)):
 	(pk -> P0(pk -> ppk, *digest, digest));
-      printf("%lu\n", mpz_get_ui(*digest));
+      //printf("%lu\n", mpz_get_ui(*digest));
       c = c << 1;
     }
   }
@@ -98,10 +98,10 @@ void _FirstPreImage(SK sk, MSG msg, unsigned msg_size, DIGEST digest,
   for(i = msg_size - 1; i >= 0; i --){ 
     char c = msg[i];
     for(j = 0; j < 8; j ++){
-      printf("iP%d: %lu -> ", (c%2), mpz_get_ui(*result));
+      //printf("iP%d: %lu -> ", (c%2), mpz_get_ui(*result));
       (c % 2)?(sk -> iP1(sk -> psk, *result, result)):
 	(sk -> iP0(sk -> psk, *result, result));
-      printf("%lu\n", mpz_get_ui(*result));
+      //printf("%lu\n", mpz_get_ui(*result));
       c = c >> 1;
     }
   }

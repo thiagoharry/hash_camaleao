@@ -7,7 +7,7 @@
 
 typedef mpz_t PT;
 typedef mpz_t PPK;
-typedef mpz_t PSK[4];
+typedef mpz_t PSK[4]; // p, q, pq, 1/sqrt(4) mod pq
 
 #define copyPT(dst, src) mpz_init_set(*dst, src)
 
@@ -18,19 +18,15 @@ void FreePT(PT *pt){
 
 // Permutation 0: x^2 mod q
 void P0(PPK mod, PT x, PT *result){
-  //printf("P0: %lu -> ", mpz_get_ui(x));
   mpz_mul(*result, x, x);
   mpz_mod(*result, *result, mod);
-  //printf("%lu\n", mpz_get_ui(*result));
 }
 
 // Permutation 1: 4x^2 mod q
 void P1(PPK mod, PT x, PT *result){
-  //printf("P1: %lu -> ", mpz_get_ui(x));
   mpz_mul(*result, x, x);
   mpz_mul_ui(*result, *result, 4);
   mpz_mod(*result, *result, mod);
-  //printf("%lu\n", mpz_get_ui(*result));
 }
 
 // Inverse of P0: sqrt(x)
@@ -38,13 +34,11 @@ void iP0(PSK psk, PT x, PT *result){
   mpz_t n;
   mpz_t root0, root1;
   mpz_t exp, tmp;
-  //printf("iP0: %lu -> ", mpz_get_ui(x));
   mpz_init(n);
   mpz_init(root0);
   mpz_init(root1);
   mpz_init(tmp);
   mpz_init(exp);
-  // Obtaining two roots module p and q:
   root_mod(root0, x, psk[0]);
   // If root0 is a quadratic residue, ok. Otherwise, choose -root0:
   {
@@ -200,7 +194,7 @@ void _RandomPT(PPK ppk, PT *pt){
     }
     num[size] = '\0';
     mpz_set_str(*pt, num, 2);
-  }while(mpz_cmp(*pt, ppk) >= 0);
+  }while(mpz_cmp(*pt, ppk) >= 0 || mpz_cmp_ui(*pt, 0) == 0);
   free(num);
   // Now return a quadratic residue:
   mpz_mul(*pt, *pt, *pt);
@@ -217,31 +211,18 @@ int main(int argc, char **argv){
   char *string1, *string2;
   DIGEST *digest, *digest2;
   RND r, r2;
-  char *m =  "0";
-  char *m2 = "2";
-  /*{// iP1(4) -> 1
-    PT result;
-    PSK psk;
-    PT x;
-    mpz_init(result);
-    mpz_init_set_ui(psk[0], 3);
-    mpz_init_set_ui(psk[1], 7);
-    mpz_init_set_ui(psk[2], 21);
-    mpz_init_set_ui(psk[3], 4);
-    mpz_init_set_ui(x, 4);
-    iP1(psk, x, &result);
-    printf("sqrt(%lu)/2 mod 21 = %lu \n", mpz_get_ui(x),
-	   mpz_get_ui(result));
-    mpz_clear(x);
-    mpz_clear(result);
-    mpz_clear(psk[0]);
-    mpz_clear(psk[1]);
-    mpz_clear(psk[2]);
-    mpz_clear(psk[3]);
-    exit(0);
-    }*/
+  char *m =  "ChameleonHash";
+  char *m2 = "ApplePieApple";
+  int security_parameter;
+  if(argc >= 2)
+    security_parameter = atoi(argv[1]);
+  if(argc < 2 || (security_parameter < 8 && security_parameter != 5)){
+    fprintf(stderr, "Usage: chamhash SECURITY_PARAMETER\n");
+    fprintf(stderr, "Where SECURITY_PARAMETER is 5 or bigger than 8.\n");
+    exit(1);
+  }
   struct chameleon_hash_scheme *CH = new_chameleon_hash_scheme();  
-  pksk = CH -> KeyGen(5);
+  pksk = CH -> KeyGen(security_parameter);
   pk = pksk -> pk;
   sk = pksk -> sk;
   string1 = mpz_get_str(NULL, 10, sk -> psk[0]);
