@@ -83,42 +83,47 @@ void PermutationKeyGen(unsigned n, PPK ppk, PSK psk){
   size_p = n / 2;
   size_q = (n+1) / 2;
   string = (char *) malloc(size_p + 1);
-  do{ // Generating p
-    string[0] = '1';
-    for(i = 1; i < size_p - 1; i ++)
-      if(arc4random_uniform(2))
-	string[i] = '1';
-      else
-	string[i] = '0';
-    string[size_p - 1] = '1';
-    string[size_p] = '\0';
-    mpz_set_str(p, string, 2);
-  }while(mpz_probab_prime_p(p, 50) <= 0);
-  free(string);
-  string = (char *) malloc(size_q + 1);
-  do{ // Generating q
-    string[0] = '1';
-    for(i = 1; i < size_q - 1; i ++)
-      if(arc4random_uniform(2))
-	string[i] = '1';
-      else
-	string[i] = '0';
-    string[size_q - 1] = '1';
-    string[size_q] = '\0';
-    mpz_set_str(q, string, 2);
-  }while(mpz_probab_prime_p(q, 50) <= 0);
-  free(string);
-  // Getting n:
-  mpz_mul(ppk[2], p, q);
-  mpz_set(psk[2], ppk[2]);
-  // Computing λ(n):
-  mpz_init(carm);
-  mpz_sub_ui(p, p, 1);
-  mpz_sub_ui(q, q, 1);
-  mpz_lcm(carm, p, q);
-  // Setting e0 and e1:
-  mpz_set_ui(ppk[0], 65537);
-  mpz_set_ui(ppk[1], 257);
+  do{
+    do{ // Generating p
+      string[0] = '1';
+      for(i = 1; i < size_p - 1; i ++)
+	if(arc4random_uniform(2))
+	  string[i] = '1';
+	else
+	  string[i] = '0';
+      string[size_p - 1] = '1';
+      string[size_p] = '\0';
+      mpz_set_str(p, string, 2);
+    }while(mpz_probab_prime_p(p, 50) <= 0);
+    free(string);
+    string = (char *) malloc(size_q + 1);
+    do{ // Generating q
+      string[0] = '1';
+      for(i = 1; i < size_q - 1; i ++)
+	if(arc4random_uniform(2))
+	  string[i] = '1';
+	else
+	  string[i] = '0';
+      string[size_q - 1] = '1';
+      string[size_q] = '\0';
+      mpz_set_str(q, string, 2);
+    }while(mpz_probab_prime_p(q, 50) <= 0);
+    free(string);
+    // Getting n:
+    mpz_mul(ppk[2], p, q);
+    mpz_set(psk[2], ppk[2]);
+    // Computing λ(n):
+    mpz_init(carm);
+    mpz_sub_ui(p, p, 1);
+    mpz_sub_ui(q, q, 1);
+    mpz_lcm(carm, p, q);
+    // Setting e0 and e1:
+    mpz_set_ui(ppk[0], 65537);
+    mpz_set_ui(ppk[1], 257);
+    // Checking if the numbers are valid
+    mpz_gcd(psk[0], carm, ppk[0]);
+    mpz_gcd(psk[1], carm, ppk[1]);
+  }while(mpz_cmp_ui(psk[0], 1) != 0 || mpz_cmp_ui(psk[1], 1) != 0);
   // Setting d0 and d1:
   mpz_invert(psk[0], ppk[0], carm);
   mpz_invert(psk[1], ppk[1], carm);
@@ -221,9 +226,9 @@ int main(int argc, char **argv){
   int security_parameter;
   if(argc >= 2)
     security_parameter = atoi(argv[1]);
-  if(argc < 2 || (security_parameter < 8 && security_parameter != 5)){
+  if(argc < 2 || (security_parameter < 4)){
     fprintf(stderr, "Usage: chamhash SECURITY_PARAMETER [--benchmark]\n");
-    fprintf(stderr, "Where SECURITY_PARAMETER is 5 or bigger than 8.\n");
+    fprintf(stderr, "Where SECURITY_PARAMETER is bigger than 4.\n");
     exit(1);
   }
   if(argc >= 3 && !strcmp("--benchmark", argv[2])){
