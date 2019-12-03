@@ -157,30 +157,35 @@ void PermutationKeyGen(unsigned n, PPK ppk, PSK psk){
   // 3 e 7: 2 bits e 3 bits
   do{ // Generating p
     string[0] = '1';
-    for(i = 1; i < size_p - 1; i ++)
+    for(i = 1; i < size_p - 3; i ++)
       if(arc4random_uniform(2))
 	string[i] = '1';
       else
 	string[i] = '0';
+    if(size_p - 3 >= 0)
+      string[size_p - 3] = '0';
+    string[size_p - 2] = '1';
     string[size_p - 1] = '1';
     string[size_p] = '\0';
     mpz_set_str(psk[0], string, 2);
     mpz_mod_ui(mod, psk[0], 8);
-  }while((mpz_probab_prime_p(psk[0], 50) <= 0) || (mpz_get_ui(mod) != 3));
+  }while(mpz_probab_prime_p(psk[0], 50) <= 0);
   free(string);
   string = (char *) malloc(size_q + 1);
   do{ // Generating q
     string[0] = '1';
-    for(i = 1; i < size_q - 1; i ++)
+    for(i = 1; i < size_q - 3; i ++)
       if(arc4random_uniform(2))
 	string[i] = '1';
       else
 	string[i] = '0';
+    string[size_q - 3] = '1';
+    string[size_q - 2] = '1';
     string[size_q - 1] = '1';
     string[size_q] = '\0';
     mpz_set_str(psk[1], string, 2);
     mpz_mod_ui(mod, psk[1], 8);
-  }while((mpz_probab_prime_p(psk[1], 50) <= 0) || (mpz_get_ui(mod) != 7));
+  }while(mpz_probab_prime_p(psk[1], 50) <= 0);
   free(string);
   mpz_clear(mod);
   // Getting public key:
