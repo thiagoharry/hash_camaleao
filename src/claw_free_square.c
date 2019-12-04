@@ -6,6 +6,10 @@
 #include <unistd.h>
 #include "mod_math.h"
 
+// KeyGen:    0.43400s
+// Hash:      0.00104s
+// Collision: 1.79000s
+
 #define MSG_SIZE 54
 
 typedef mpz_t PT;
@@ -15,7 +19,7 @@ typedef mpz_t PSK[4]; // p, q, pq, 1/sqrt(4) mod pq
 /********************* TIMER **************************************/
 #include <sys/time.h>
 #include <math.h>
-#define N 10
+#define N 2
 unsigned long t_sum = 0;
 unsigned long measures[N];
 int _i = 0;
@@ -264,25 +268,31 @@ void benchmark(int security_parameter){
     int j;
     for(j = 0; j < MSG_SIZE; j ++)
       m[j] = arc4random_uniform(256);
+    CH -> RandomR(pk, &r);
     TIMER_BEGIN();
     digest = CH -> Hash(pk, (char *) m, MSG_SIZE, r);
     TIMER_END();
+    mpz_clear(r);
     FreePT(digest);
   }
   printf("Hash: ");
   TIMER_RESULT();
-  digest = CH -> Hash(pk, (char *) m, MSG_SIZE, r);
   // Collision
   for(i = 0; i < N; i ++){
     int j;
     for(j = 0; j < MSG_SIZE; j ++)
       m2[j] = arc4random_uniform(256);
+    CH -> RandomR(pk, &r);
     TIMER_BEGIN();
-    CH -> FirstPreImage(sk, (char *) m, MSG_SIZE, *digest, &r2);
+    CH -> FirstPreImage(sk, (char *) m2, MSG_SIZE, r, &r2);
     TIMER_END();
+    mpz_clear(r2);
+    mpz_clear(r);
   }
   printf("Collision: ");
   TIMER_RESULT();
+  CH -> FreePairOfKeys(pksk);
+  free(CH);
 }
 
 int main(int argc, char **argv){

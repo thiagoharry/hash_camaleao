@@ -6,6 +6,10 @@
 #include <unistd.h>
 #include "mod_math.h"
 
+// KeyGen:    0.4040s
+// Hash:      0.0146s
+// Collision: 2.1200s
+
 #define MSG_SIZE 54
 
 typedef mpz_t PT;
@@ -15,10 +19,10 @@ typedef mpz_t PSK[3]; // d0, d1, n
 /********************* TIMER **************************************/
 #include <sys/time.h>
 #include <math.h>
-#define N 10
-unsigned long t_sum = 0;
-unsigned long measures[N];
-int _i = 0;
+#define N 2
+static unsigned long t_sum = 0;
+static unsigned long measures[N];
+static int _i = 0;
 #define TIMER_BEGIN() { struct timeval _begin, _end;	\
   gettimeofday(&_begin, NULL);
 #define TIMER_END() gettimeofday(&_end, NULL);		  \
@@ -44,22 +48,18 @@ void FreePT(PT *pt){
   free(pt);
 }
 
-// Permutation 0: x^2 mod q
 void P0(PPK ppk, PT x, PT *result){
   mpz_powm(*result, x, ppk[0], ppk[2]);
 }
 
-// Permutation 1: 4x^2 mod q
 void P1(PPK ppk, PT x, PT *result){
   mpz_powm(*result, x, ppk[1], ppk[2]);
 }
 
-// Inverse of P0: sqrt(x)
 void iP0(PSK psk, PT x, PT *result){
   mpz_powm(*result, x, psk[0], psk[2]);
 }
 
-// Inverse of P1: sqrt(x)/2
 void iP1(PSK psk, PT x, PT *result){
   mpz_powm(*result, x, psk[1], psk[2]);
 }
@@ -82,8 +82,8 @@ void PermutationKeyGen(unsigned n, PPK ppk, PSK psk){
   mpz_init(ppk[2]);
   size_p = n / 2;
   size_q = (n+1) / 2;
-  string = (char *) malloc(size_p + 1);
   do{
+    string = (char *) malloc(size_p + 1);
     do{ // Generating p
       string[0] = '1';
       for(i = 1; i < size_p - 1; i ++)
@@ -192,26 +192,32 @@ void benchmark(int security_parameter){
     int j;
     for(j = 0; j < MSG_SIZE; j ++)
       m[j] = arc4random_uniform(256);
+    CH -> RandomR(pk, &r);
     TIMER_BEGIN();
     digest = CH -> Hash(pk, (char *) m, MSG_SIZE, r);
     TIMER_END();
+    mpz_clear(r);
     FreePT(digest);
   }
   printf("Hash: ");
   TIMER_RESULT();
-  digest = CH -> Hash(pk, (char *) m, MSG_SIZE, r);
   // Collision
   for(i = 0; i < N; i ++){
-    int j;
-    for(j = 0; j < MSG_SIZE; j ++)
-      m2[j] = arc4random_uniform(256);
+    CH -> RandomR(pk, &r);
+    digest = CH -> Hash(pk, (char *) m, MSG_SIZE, r);
     TIMER_BEGIN();
     CH -> FirstPreImage(sk, (char *) m, MSG_SIZE, *digest, &r2);
     TIMER_END();
+    mpz_clear(r);
+    mpz_clear(r2);
+    FreePT(digest);
   }
   printf("Collision: ");
   TIMER_RESULT();
+  CH -> FreePairOfKeys(pksk);
+  free(CH);
 }
+
 
 int main(int argc, char **argv){
   int i;
@@ -283,7 +289,7 @@ int main(int argc, char **argv){
   string2 = mpz_get_str(NULL, 10, *digest);
   printf("Hash(\"%s\", %s) = %s\n", m, string1, string2);
   free(string1);
-  free(string2);  
+  free(string2);
   CH -> Collision(sk, m, strlen(m), r, m2, &r2);
   string1 = mpz_get_str(NULL, 10, r2);
   digest2 = CH -> Hash(pk, m2, strlen(m2), r2);

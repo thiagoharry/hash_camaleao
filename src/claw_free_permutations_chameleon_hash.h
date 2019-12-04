@@ -78,12 +78,12 @@ DIGEST *_Hash(PK pk, MSG msg, unsigned msg_size, RND rnd){
   int i, j;
   DIGEST *digest = (DIGEST *) malloc(sizeof(DIGEST));
   copyPT(digest, rnd);
-  for(i = 0; i < msg_size; i ++){
+  for(i = 0; i < msg_size; i ++){// 0.00028s cada loop
     uint8_t c = msg[i];
     for(j = 0; j < 8; j ++){
       //printf("P%d: %lu -> ", (c/128), mpz_get_ui(*digest));
       (c / 128)?(pk -> P1(pk -> ppk, *digest, digest)):
-	(pk -> P0(pk -> ppk, *digest, digest));
+	(pk -> P0(pk -> ppk, *digest, digest)); //0.00012s no rsa
       //printf("%lu\n", mpz_get_ui(*digest));
       c = c << 1;
     }
@@ -91,16 +91,18 @@ DIGEST *_Hash(PK pk, MSG msg, unsigned msg_size, RND rnd){
   return digest;
 }
 
+
+
 void _FirstPreImage(SK sk, MSG msg, unsigned msg_size, DIGEST digest,
 		    RND *result){
   int i, j;
   copyPT(result, digest);
-  for(i = msg_size - 1; i >= 0; i --){ 
+  for(i = msg_size - 1; i >= 0; i --){// 0.038s cada loop 
     char c = msg[i];
     for(j = 0; j < 8; j ++){
       //printf("iP%d: %lu -> ", (c%2), mpz_get_ui(*result));
       (c % 2)?(sk -> iP1(sk -> psk, *result, result)):
-	(sk -> iP0(sk -> psk, *result, result));
+	(sk -> iP0(sk -> psk, *result, result));// 0.0049s no rsa
       //printf("%lu\n", mpz_get_ui(*result));
       c = c >> 1;
     }

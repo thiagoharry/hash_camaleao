@@ -39,37 +39,26 @@ propriedade de resistência à colisões. Dependendo da construção da
 hash camaleão, a propriedade de resistência à primeira pré-imagem
 também pdode se perder quando tem-se acesso à chave privada.
 
-Segundo uma definição adaptada de Ateniese e Medeiros \cite{ateniese},
-um esquema de hash camaleão é definido pelas seguintes funções:
+Existem 3 tipos principais de esquemas de hash camaleão que serão
+descritas nas próximas seções.
+
+\section{Hashes Camaleão Simples}
+
+Um Esquema de Hash Camaleão Simples é uma tupla formada por três
+algoritmos:
 
 \begin{itemize}
 \item\textbf{KeyGen}: $1^k \rightarrow (\mathcal{SK}, \mathcal{PK})$\\
   Dado um parâmetro de segurança, ela retorna um par de chaves pública
   e privada a ser usada com uma hash camaleão.
-\item\textbf{Hash}: $(\mathcal{PK}, m, r) \rightarrow C \in \{0,
-  1\}^\mathcal{T}$ \\ Dada uma chave pública, uma mensagem e um parâmetro
-  aleatório, retorna uma sequência binária de tamanho fixo $\mathcal{T}$.
-\item\textbf{UForge}: $(\mathcal{SK}, m, r) \rightarrow (m',
-  r')$\\ tal que $Hash(\mathcal{PK}, m, r) = Hash(\mathcal{PK}, m',
-  r')$ e $(m, r) \neq (m', r')$.
-\item\textbf{IForge}: $(\mathcal{PK}, m, r, m', r') \rightarrow (m'',
-  r'')$\\ tal que $Hash(\mathcal{PK}, m, r) = Hash(\mathcal{PK}, m',
-  r') \Longrightarrow$\\ $Hash(\mathcal{PK}, m, r) = Hash(\mathcal{PK}, m',
-  r') = Hash(\mathcal{PK}, m'', r'')$, sendo $m \neq m' \neq m''$.
-\item\textbf{FirstPreImage}: $(\mathcal{SK}, m, C) \rightarrow r$
-  tal que $Hash(\mathcal{PK}, m, r) = C$.
+\item\textbf{Hash}: $(\mathcal{PK}, m, r) \rightarrow C$. 
+\item\textbf{Collision}: $(\mathcal{SK}, m, r, m') \rightarrow r'$
+  tal que $Hash(\mathcal{PK}, m, r) = Hash(\mathcal{PK}, m', r')$ e
+  $(m, r) \neq (m', r')$.
 \end{itemize}
 
-As duas últimas funções são opcionais e não estão presentes em todos
-os esquemas. A última não foi sugerida por Ateniese e Medeiros e está
-sendo adicionada aqui por ser considerada relevante neste contexto no
-qual vamos analizar uma quantidade maior de esquemas, não só aqueles
-livres de exposição de chave (ver abaixo).  Além disso, na prática
-alguns esquemas podem exigir parâmetros adicionais como uma string de
-identificação ou um segundo argumento aleatório além de $r$.
-
-Iremos definir as seguintes propriedades, também adaptadas de Ateniese
-e Medeiros, com uma última adicional:
+Além disso, as seguintes propriedades devem estar presentes no
+esquema:
 
 \begin{itemize}
 \item\textbf{Resistência a Colisão: }Não existe algoritmo eficiente
@@ -123,37 +112,90 @@ e Medeiros, com uma última adicional:
     }
   \end{algorithm}
 
-  
-\item\textbf{Ocultação de Mensagem: }Essa propriedade se refere à
-  existência da função \textbf{IForge} acima. Isso é o que permite que
-  quando as hashes camaleão são usadas no contexto de assinaturas, se
-  um signatário que assumimos não possuir a chave privada assinar o
-  hash $C$ da mensagem $m$ e alguém atribuir sua assinatura à mensagem
-  $m'$ obtida pro meio da função \textbf{UForge}, então o signatário é
-  capaz de provar que não assinou aquela mensagem específica sem
-  revelar a mensagem original $m$, mas apenas uma mensagem $m''$
-  obtida por meio de \textbf{IForge}. Por outro lado, como ele não
-  possui $\mathcal{SK}$, se alguém atribuir sua assinatura à uma
-  mensagem que ele realmente assinou, ele não é capaz de produzir um
-  $m'$ nem $m''$.
-\item\textbf{Livre de Exposição de Chave: }A colisão de um hash
-  camaleão sempre revela alguma informação por meio da equação
-  $Hash(\mathcal{PK}, m, r) = Hash(\mathcal{PK}, m', r')$. Essa
-  propriedade garante que a informação obtida não revela
-  $\mathcal{SK}$ e nem dá informações que auxiliem na sua descoberta.
-\item\textbf{Cálculo de Primeira Pré-Imagem: }Esta propriedade diz
-  respeito à existência da função \textbf{FirstPreImage}.
+\item\textbf{Ocultação de Mensagem ou Resistência à Forja} As duas
+  propriedades acima são mutualmente excludentes, mas um Esquema de
+  Hash Camaleão deve possuir uma delas para ser válida.
+
+  A \textbf{Ocultação de Mensagem} implica na existência de um
+  algoritmo determinístico \textbf{IForge}: $(\mathcal{PK}, m, r, m',
+  r') \rightarrow (m'', r'')$ tal que se $Hash(\mathcal{PK}, m, r) =
+  Hash(\mathcal{PK}, m', r') = C$, então $Hash(\mathcal{PK}, m'',
+  r'')=C$.
+
+  A \textbf{Resistência à Forja} afirma que para todo algoritmo
+  probabilístico $\mathcal{A}$ que recebe uma chave pública
+  $\mathcal{PK}$ e pode consultar um número polinomial de vezes um
+  oráculo que retorna diferentes resultados de
+  $Collision(\mathcal{SK}, m, r, m')$ para quaisquer valores de $m$,
+  $r$ e $m'$, a probabilidade do experimento abaixo retornar 1 é
+  negligível:
+
+  \noindent
+  \begin{algorithm}[H]
+    \SetAlgoLined
+    \SetKwInOut{Input}{Entrada}\SetKwInOut{Output}{Saída}
+    \SetKwFunction{FMain}{ForgeRes$_\mathcal{A}^{CH}$}
+    \SetKwProg{Fn}{Experimento}{:}{} \Fn{\FMain{$n$}}{ $(\mathcal{PK},
+      \mathcal{SK}) \leftarrow$ \textbf{KeyGen}($1^n$)\; $(m, r, m',
+      r') \leftarrow \mathcal{A}^{Collision(\mathcal{SK}, ., .,
+        .)}(\mathcal{PK})$\; {\eIf{$Hash(\mathcal{PK}, m, r) =
+          Hash(\mathcal{PK}, m', r')$ \textbf{e} $(m, r) \neq (m',
+          r')$ \textbf{e} $r$ e $r'$ não foram retornados pelo
+          oráculo} {\textbf{retorne} 1\;} {\textbf{retorne} 0\;} }
+    }\textbf{Fim}
+  \end{algorithm}
 \end{itemize}
 
-Uma última propriedade compartilhada por definição por todos os hashes
-camaleão é que a composição de uma função hash convencional e uma hash
-camaleão é sempre uma hash camaleão. Por causa disso, sempre que for
-relevante, a construção de um hash camaleão pode assumir que todas as
-mensagens de seu domínio possuem sempre o mesmo tamanho fixo.
+Opcionalmente um esquema pode apresentar também as seguintes
+propriedades:
 
-\section{Construção Baseada em Permutações (Krawczyk) \cite{krawczyk}}
+\begin{itemize}
+\item\textbf{Livre de Exposição de Chave:} Para todo algoritmo
+  probabilístico $\mathcal{A}$ que recebe uma chave pública
+  $\mathcal{PK}$ e pode consultar um número polinomial de vezes um
+  oráculo que retorna o resultado de $Collision(\mathcal{SK}, m, r,
+  m')$ para diferentes valores de $m$, $r$ e $m'$, a probabilidade o
+  experimento abaixo retornar 1 é negligível:
 
-\subsection{Funções}
+\noindent
+  \begin{algorithm}[H]
+    \SetAlgoLined
+    \SetKwInOut{Input}{Entrada}\SetKwInOut{Output}{Saída}
+    \SetKwFunction{FMain}{ForgeRes$_\mathcal{A}^{CH}$}
+    \SetKwProg{Fn}{Experimento}{:}{} \Fn{\FMain{$n$}}{ $(\mathcal{PK},
+      \mathcal{SK}) \leftarrow$ \textbf{KeyGen}($1^n$)\;
+      $\mathcal{SK'} \leftarrow \mathcal{A}^{Collision(\mathcal{SK},
+        ., ., .)}(\mathcal{PK})$\; {\eIf{$\mathcal{SK} =
+          \mathcal{SK'}$} {\textbf{retorne} 1\;} {\textbf{retorne}
+          0\;} } }\textbf{Fim}
+  \end{algorithm}
+
+  Se um esquema de hash camaleão não é livre de exposição de chaves,
+  então ele não será resistente à forjas.
+
+  Uma hash camaleão que não é livre de exposição de chaves precisará
+  ser usada com as suas chaves sendo descartáveis e tendo que ser
+  substituídas após o uso, ou devem ser adaptadas para outros tipos de
+  esquemas mais sofisticados de hashes camaleão.
+\item\textbf{Cálculo de Primeira Pré-Imagem:} Existe um algoritmo
+  determinístico eficiente $FirstPreImage$ que recebe uma chave
+  privada $\mathcal{SK}$ e um valor de hash $C$ e retorna um par $(m,
+  r)$ tal que $Hash(\mathcal{PK}, m, r) = C$ para a chave pública
+  correspondente à chave privada recebida como argumento.
+\end{itemize}
+  
+
+É importante notar que a composição de uma hash convencional e uma
+hash camaleão é uma hash camaleão. Grande parte das definições de hash
+camaleão assume que a mensagem de entrada possui um tamanho fixo ou
+está em um formato pré-estabelecido. Em tais casos, assumimos que a
+mensagem já passou previamente por uma função hash que a deixou no
+formato adequado.
+
+\subsection{Construção Baseada em Permutações de Resíduos Quadráticos (Krawczyk)
+  (2000) \cite{krawczyk}}
+
+\subsubsection{Funções}
 
 \textbf{KeyGen: }Como chave pública, gere duas funções de permutação
 que atuam sobre um mesmo Domínio. Chamaremos elas de $f_0$ e
@@ -185,10 +227,11 @@ que encontrar um 0, aplique sobre o valor atual de $r$ a função
 $f_0^{-1}$. Sempre que encontrar um 1, aplique $f_1^{-1}$. O valor
 final é o $r$ desejado.
 
-\textbf{UForge:} Basta escolher uma mensagem $m'$ qualquer que seja
+\textbf{Collision:} Basta escolher uma mensagem $m'$ qualquer que seja
 diferente de $m$ e calcular usando a equação:
 
-$UForge(\mathcal{SK}, m, r) = (m', FirstPreImage(\mathcal{SK}, m', Hash(\mathcal{PK}, m, r)))$
+$Collision(\mathcal{SK}, m, r) = (m', FirstPreImage(\mathcal{SK}, m',
+Hash(\mathcal{PK}, m, r)))$
 
 \textbf{IForge:} Essa função existe somente porque a construção de
 Krawczyk não é livre de exposição da chave (ver abaixo). Isso
@@ -202,7 +245,7 @@ outras funções de permutações fôssem usadas, de modo que a
 implementação fôsse livre de exposição de chave, não necessariamente
 teríamos acesso à esta função.
 
-\subsection{A Exposição de Chave}
+\subsubsection{A Exposição de Chave}
 
 Se encontramos uma colisão nesta hash camaleão, temos duas mensagens
 que à partir de algum momento em que iteramos sobre seus bits, obtemos
@@ -228,22 +271,22 @@ $\mathcal{SK}$.
 O mesmo raciocínio também nos mostra que encontrar uma colisão sem
 acesso à $\mathcal{SK}$ é tão difícil quanto fatorar números.
 
-\subsection{Propriedades}
+%\subsection{Propriedades}
 
-As seguintes propriedades são específicas da construção de Krawczyk. O
-uso de diferentes permutações pode mudar as propriedades.
+%As seguintes propriedades são específicas da construção de Krawczyk. O
+%uso de diferentes permutações pode mudar as propriedades.
 
-\textbf{Resistência a Colisão: }Sim se assumirmos que é difícil
-fatorar números.
+%\textbf{Resistência a Colisão: }Sim se assumirmos que é difícil
+%fatorar números.
 
-\textbf{Ocultação de Mensagem: }Sim, usando a função \textbf{IForge}
-definida acima.
+%\textbf{Ocultação de Mensagem: }Sim, usando a função \textbf{IForge}
+%definida acima.
 
-\textbf{Livre de Exposição de Chave: } Não.
+%\textbf{Livre de Exposição de Chave: } Não.
   
-\textbf{Cálculo de Primeira Pré-Imagem: }Sim.
+%\textbf{Cálculo de Primeira Pré-Imagem: }Sim.
 
-\subsection{Exemplo Didático}
+\subsubsection{Exemplo Didático}
 
 Começamos escolhendo os valores $p=3$ e $q=7$, que tem a propriedade
 desejada de serem respectivamente côngruos a 3 e 7 módulo
@@ -287,10 +330,51 @@ $$
 
 Exatamente o valor que era esperado.
 
-\section{Construção Baseada em Logaritmo Discreto (Krawczyk)
+\subsubsection{Medida de Desempenho}
+
+Usando uma implementação em C baseada na biblioteca GNU MP com chaves
+de 2048 bits e mensagens de 54 bytes, rodando em um computador Intel
+i7, foi obtido os seguintes tempos de execução:
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+  \hline
+  KeyGen & 0,43400s & Hash & 0,00104s & Collision & 1,79000s\\
+  \hline
+\end{tabular}
+\end{center}
+
+
+\subsection{Construção Baseada em Permutações do RSA}
+
+Esta proposta funciona da mesma forma que a anterior, mas utiliza o
+RSA como função de permutação. Na literatura não foi encontrada uma
+proposta de uso desta hash camaleão, provavelmente devido ao seu
+desempenho pior comparada à anterior. 
+
+Esta construção está sendo mencionada aqui principalmente por ser um
+caso no qual apearentemente o esquema é livre de exposição de chave e
+apresenta resistência à forja mesmo possuindo o cálculo de primeira
+pré-imagem. Propriedades que são únicas em meio à outros esquemas de
+hash camaleão do tipo.
+
+\subsubsection{Medida de Desempenho}
+
+Executando uma implementação de 2048 bits em mensagens de 54 bytes, os
+seguintes tempos de execução foram obtidos:
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+  \hline
+  KeyGen & 0,4040s & Hash & 0,0146s & Collision & 2,1200s\\
+  \hline
+\end{tabular}
+\end{center}
+
+\subsection{Construção Baseada em Logaritmo Discreto (Krawczyk)(2000)
   \cite{krawczyk}}
 
-\subsection{Funções}
+\subsubsection{Funções}
 
 \textbf{KeyGen: }Primeiro encontre primos grandes $p$ e $q$ tais que
 $p = kq+1$ e um grupo multiplicativo modular $\mathbb{Z}^{*}_p$ com um
@@ -305,7 +389,7 @@ parâmetro $r\in \mathbb{Z}^{*}_q$, a hash camaleão é obtida por meio
 da definição:
 
 $$
-Hash(m, r) = g^my^r \mod p
+Hash(\mathcal{PK}=y, m, r) = g^my^r \mod p
 $$
 
 \textbf{FirstPreImage:} Não. Seria necessário resolver o problema do
@@ -313,35 +397,32 @@ logaritmo discreto para implementar esta função.
 
 \textbf{UForge:} A chave privada é o logaritmo discreto de $y$. Se
 temos um $m$ e um $r$ que possui um hash conhecido e queremos que um
-$m'$ qualquer gere o mesmo valor hash, o valor $r'$ necessário pode
-ser obtido pela equação:
+$m'$ qualquer gere o mesmo valor hash, o valor $r'$ necessário é
+retornado por:
 
 $$
-m+xr = m'+xr'
+Collision(\mathcal{SK}=x, m, r, m') = (m+xr-m')(x)^{-1}
 $$
 
-Notar que da mesma forma, uma pessoa que não conhece o valor $x$, mas
-que tem acesso a pares $(m, r)$ e $(m', r')$, pode obter o valor de
-$x$ usando a mesma equação. Portanto esta implementação sofre com o
-problema de exposição de chave.
+\textbf{IForge:} Este esquema não é livre de exposição de chaves. A
+chave secreta $x$ pode ser obtida por qualquer um que tenha acesso à
+uma colisão $(m, r)$ e $(m', r')$ por meio da fórmula $m+xr =
+m'+xr'$. Sendo assim, tendo acesso a uma colisão é trivial extrair a
+chave privada e assim gerar novas colisões mesmo sem receber a chave
+privada explicitamente.
 
-\textbf{IForge:} Este esquema também sofre do problema de exposição de
-chaves. Sendo assim, tendo acesso a uma colisão é trivial extrair a
-chave privada e assim esta função pode ser implementada como na seção
-anterior.
+%\subsection{Propriedades}
 
-\subsection{Propriedades}
+%\textbf{Resistência a Colisão: }Sim se assumirmos que é difícil
+%calcular o logaritmo discreto no grupo escolhido.
 
-\textbf{Resistência a Colisão: }Sim se assumirmos que é difícil
-calcular o logaritmo discreto no grupo escolhido.
+%\textbf{Ocultação de Mensagem: }Sim, usando a função \textbf{IForge}.
 
-\textbf{Ocultação de Mensagem: }Sim, usando a função \textbf{IForge}.
-
-\textbf{Livre de Exposição de Chave: } Não.
+%\textbf{Livre de Exposição de Chave: } Não.
   
-\textbf{Cálculo de Primeira Pré-Imagem: }Não.
+%\textbf{Cálculo de Primeira Pré-Imagem: }Não.
 
-\subsection{Exemplo Didático}
+\subsubsection{Exemplo Didático}
 
 Vamos escolher um $p=11=(5)(2)+1$ com um $q=5$. Para o nosso valor de
 $p$ temos então o seguinte grupo multiplicativo:
@@ -435,6 +516,17 @@ $$ Hash(\mathcal{PK}=4, m'=7, r'=4) = g^{m'}y^{r'} = 5^74^4 \mod 11 =
 $$
 
 Exatamente o resultado esperado.
+
+\subsubsection{Medida de Desempenho}
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+  \hline
+  KeyGen & 0,005490s & Hash & 0,009530s & Collision & 0,000032s\\
+  \hline
+\end{tabular}
+\end{center}
+
 
 \section{Construção Baseada no RSA (Ateniese e Medeiros) \cite{ateniese}}
 
