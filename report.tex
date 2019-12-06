@@ -527,8 +527,103 @@ Exatamente o resultado esperado.
 \end{tabular}
 \end{center}
 
+\subsection{Construção Baseada em Assinatura de Nyberg-Rueppel (Ateniese e Medeiros) (2005)\cite{ateniese}}
 
-\section{Construção Baseada no RSA (Ateniese e Medeiros) \cite{ateniese}}
+\subsubsection{Funções}
+
+\textbf{KeyGen: }Assuma termos acesso a um grupo de inteiros módulo
+$p=2q+1$, sendo $p$ e $q$ primos. A chave pública é $(g, y=g^x)$. A
+chave privada é $x$. Os valores são sempre módulo $p$, exceto nos
+expoentes que são módulo $q$. Então a chave privada deve ser vista
+como um valor módulo $q$.
+
+\textbf{Hash: }Neste esquema, consideramos o $r$ como sendo uma tupla
+de dois valores aleatórios $(r_1, r_2)$. O hash é calculado então:
+
+$$ Hash(m, (r_1, r_2)) = \left[r_1-(y^{\mathcal{H}(m||r_1)}g^{r_2}
+  \mod p)\right] \mod q
+$$
+
+Assumindo $\mathcal{H}(m||r_1)$ como o cálculo de um hash
+criptográfico convencional da concatenação de $m$ e $r_1$.
+
+\textbf{FirstPreImage:} Não definida.
+
+\textbf{Collision:} A função pode ser definida gerando um $k$ aleatório
+módulo $q$ e obtendo:
+
+$$
+r_1' = \left[(Hash(m, (r_1, r_2)) + (g^k \mod p))\right] \mod q
+$$
+
+$$
+r_2 = \left[k-\mathcal{H}(m'||r_1')x\right] \mod q
+$$
+
+Isso funciona, pois se formos usar tais valores para computar o hash
+da mensagem $m'$, obtemos:
+
+\begin{equation}
+\begin{split}
+  Hash(m', (r_1', r_2')) &= \left[r_1'-(y^{\mathcal{H}(m'||r_1')}g^{r_2'} \mod p)\right] \mod q\\
+  &=\big[\left[(Hash(m, (r_1, r_2)) + (g^k \mod p))\right] \mod q\\
+    &\qquad-(y^{\mathcal{H}(m'||r_1')}g^{[k-\mathcal{H}(m'||r_1')x]} \mod p)\big] \mod q\\
+  &=\big[\left[(Hash(m, (r_1, r_2)) + (g^k \mod p))\right] \mod q\\
+    &\qquad-(g^{x\mathcal{H}(m'||r_1')}g^{[k-\mathcal{H}(m'||r_1')x]} \mod p)\big] \mod q\\
+  &= Hash(m, (r_1, r_2)) + g^k - g^k \mod q\\
+  &= Hash(m, (r_1, r_2))
+\end{split}
+\end{equation}
+
+\textbf{IForge: }Não definida.
+
+%\subsection{Propriedades}
+%
+%\textbf{Resistência a Colisão: }Sim se assumirmos que é seguro usar
+%duas vezes variações do esquema de assinatura de Nyberg-Rueppel. O
+%artigo que apresenta este método cita uma referência que teria provado
+%isso.
+
+%\textbf{Ocultação de Mensagem: }Não.
+
+%\textbf{Livre de Exposição de Chave: }Sim.
+
+%\textbf{Cálculo de Primeira Pré-Imagem: }Não.
+
+\subsection{Construção Baseada em Reticulados (David Cash)
+  (2010)\cite{reticulado}}
+
+A escrever.
+
+\subsection{Características dos Esquemas Apresentados}
+
+A tabela abaixo sintetiza as características mais relevantes dos
+esquemas vistos nesta seção. Cada esquema está identificado pelo
+número da subseção em que ele foi apresentado.
+
+A segunda coluna informa se o esquema é livre do problema de exposição
+de chaves. A terceira coluna se ele tem a propriedade de ocultação de
+mensagem. A quarta se ele é resistente à falsificação. E a quinta se 
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|} 
+  \hline
+  Esquema&E.C.&O.M.&/Resistência à Falsificação&1$^{\rm a}$ pré-imagem\\
+  \hline
+  2.1&X&\ok&X&\ok\\
+  \hline
+  2.2&\ok&X&\ok&\ok\\
+  \hline
+  2.3&X&\ok&X&X\\
+  \hline
+  2.4&\ok&\ok&X&X\\
+  \hline
+  2.5&\ok&X&\ok&X\\
+  \hline
+\end{tabular}
+\end{center}
+
+\subsection{Construção Baseada no RSA (Ateniese e Medeiros) (2005)\cite{ateniese}}
 
 Este esquema se baseia nas propriedades da assinatura e criptografia
 RSA. Elas nos dizem que se temos dois primos grandes $p$ e $q$,
@@ -648,7 +743,7 @@ o qual assumimos que é um valor único que não é reaproveitado.
   
 \textbf{Cálculo de Primeira Pré-Imagem: }Não.
 
-\section{Construção Baseada em Assinatura Boneh-Lynn-Shacham (Zhang) \cite{zhang}}
+\subsection{Construção Baseada em Assinatura Boneh-Lynn-Shacham (Zhang) \cite{zhang}}
 
 Seja $G_1$ e $G_2$ dois grupos (cuja operação será escrita aqui na
 notação multiplicativa) nos quais dado um gerador $g$ e valores $g^x$
@@ -736,7 +831,7 @@ não foi definida.
 
 \textbf{Cálculo de Primeira Pré-Imagem: }Não.
 
-\section{Construção Baseada em Emparelhamento Bilinear (Zhang) \cite{zhang}}
+\subsection{Construção Baseada em Emparelhamento Bilinear (Zhang) \cite{zhang}}
 
 Este esquema é proposto no mesmo artigo que o anterior e é uma forma
 alternativa de construir hash camaleão com emparelhamnento bilinear.
@@ -805,7 +900,7 @@ não foi definida.
 
 \textbf{Cálculo de Primeira Pré-Imagem: }Não.
 
-\section{Construção Baseada em Logaritmo Discreto de Chen (Chen)
+\subsection{Construção Baseada em Logaritmo Discreto de Chen (Chen)
   \cite{chen}}
 
 O primeiro método baseado em logaritmo discreto proposto por Krawczyk
@@ -893,70 +988,6 @@ resolver uma instância do Problema Computacional Diffie-Hellman.
 \textbf{Ocultação de Mensagem: }Sim.
 
 \textbf{Livre de Exposição de Chave: } Sim.
-
-\textbf{Cálculo de Primeira Pré-Imagem: }Não.
-
-\section{Construção Baseada em Assinatura de Nyberg-Rueppel (Ateniese e Medeiros) \cite{ateniese}}
-
-\subsection{Funções}
-
-\textbf{KeyGen: }Assim como no esquema de assinatura Nyberg–Rueppel em
-que este esquema se baseia, temos um grupo de inteiros módulo
-$p=2q+1$, sendo $p$ e $q$ primos. A chave pública é $(g, g^x)$. A
-chave privada é $x$. Os valores são sempre módulo $p$, exceto nos
-expoentes que são módulo $q$. Então a chave privada deve ser vista
-como um valor módulo $q$.
-
-\textbf{Hash: }Neste esquema, consideramos o $r$ como sendo uma tupla
-de dois valores aleatórios $(r_1, r_2)$. O hash é calculado então:
-
-$$
-Hash(m, (r_1, r_2)) = \left[r_1-(y^{\mathcal{H}(m, r_1)}g^{r_2} \mod p)\right] \mod q
-$$
-
-Assumindo $\mathcal{H}(m, r_1)$ como o cálculo de um hash
-criptográfico convencional da concatenação de $m$ e $r_1$.
-
-\textbf{FirstPreImage:} Não definida.
-
-\textbf{UForge:} A função pode ser definida gerando um $k$ aleatório
-módulo $q$ e obtendo:
-
-$$
-r_1' = \left[(Hash(m, (r_1, r_2)) + (g^k \mod p))\right] \mod q
-$$
-
-$$
-r_2 = \left[k-\mathcal{H}(m', r_1')x\right] \mod q
-$$
-
-Isso funciona, pois se formos usar tais valores para computar o hash
-da mensagem $m'$, obtemos:
-
-\begin{equation}
-\begin{split}
-  Hash(m', (r_1', r_2')) &= \left[r_1'-(y^{\mathcal{H}(m', r_1')}g^{r_2'} \mod p)\right] \mod q\\
-  &=\big[\left[(Hash(m, (r_1, r_2)) + (g^k \mod p))\right] \mod q\\
-    &\qquad-(y^{\mathcal{H}(m', r_1')}g^{[k-\mathcal{H}(m', r_1')x]} \mod p)\big] \mod q\\
-  &=\big[\left[(Hash(m, (r_1, r_2)) + (g^k \mod p))\right] \mod q\\
-    &\qquad-(g^{x\mathcal{H}(m', r_1')}g^{[k-\mathcal{H}(m', r_1')x]} \mod p)\big] \mod q\\
-  &= Hash(m, (r_1, r_2)) + g^k - g^k \mod q\\
-  &= Hash(m, (r_1, r_2))
-\end{split}
-\end{equation}
-
-\textbf{IForge: }Não definida.
-
-\subsection{Propriedades}
-
-\textbf{Resistência a Colisão: }Sim se assumirmos que é seguro usar
-duas vezes variações do esquema de assinatura de Nyberg-Rueppel. O
-artigo que apresenta este método cita uma referência que teria provado
-isso.
-
-\textbf{Ocultação de Mensagem: }Não.
-
-\textbf{Livre de Exposição de Chave: }Sim.
 
 \textbf{Cálculo de Primeira Pré-Imagem: }Não.
 
