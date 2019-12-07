@@ -1,11 +1,10 @@
 #include <string.h>
 #include <gmp.h>
 #include <bsd/stdlib.h>
-#include <openssl/sha.h>
 
-// KeyGen:    0.005490s
-// Hash:      0.009530s
-// Collision: 0.000032s
+// KeyGen:    0.
+// Hash:      0.
+// Collision: 0.
 
 #define X 0
 #define Y 0
@@ -119,7 +118,7 @@ void _RandomR(PK pk, RND *rnd){
   int i;
   mpz_init(*rnd[0]);
   mpz_init(*rnd[1]);
-  char *string = (char*) malloc(2049);
+  char *string = (char*) malloc(2048);
   // Get a random number smaller than q (r1)
   do{
     for(i = 0; i < 2047; i ++)
@@ -130,50 +129,57 @@ void _RandomR(PK pk, RND *rnd){
     string[2047] = '\0';
     mpz_set_str(*rnd[0], string, 2);
   }while(mpz_cmp(*rnd, pk[Q]) >= 0 || mpz_cmp_ui(*rnd, 0) == 0);
-  // Get a random number smaller than p (r2)
+  // Get a random number smaller than q (r2)
   do{
-    for(i = 0; i < 2048; i ++)
+    for(i = 0; i < 2047; i ++)
       if(arc4random_uniform(2))
 	string[i] = '1';
       else
 	string[i] = '0';
-    string[2048] = '\0';
+    string[2047] = '\0';
     mpz_set_str(*rnd[1], string, 2);
-  }while(mpz_cmp(*rnd[1], pk[P]) >= 0 || mpz_cmp_ui(*rnd, 0) == 0);
+  }while(mpz_cmp(*rnd[1], pk[Q]) >= 0 || mpz_cmp_ui(*rnd, 0) == 0);
   free(string);
 }
 
 DIGEST *_Hash(PK pk, MSG msg, unsigned msg_size, RND rnd){
-  char hash[64], msg2[MSG_SIZE+2047];
+  char hash[64];
   mpz_t aux;
   DIGEST *digest = (DIGEST *) malloc(sizeof(DIGEST));
-  strncpy(msg2, msg, MSG_SIZE);
-  
-  SHA512(const unsigned char *d, size_t n, unsigned char *md);
   mpz_init(*digest);
   mpz_init(aux);
-  mpz_powm(*digest, pk[1], msg, pk[2]);
-  mpz_powm(aux, pk[0], rnd, pk[2]);
+  // Computing y^e:
+  mpz_powm(*digest, pk[Y], msg, pk[P]);
+  // Computing g^r[1]
+  mpz_powm(aux, pk[G], rnd[1], pk[P]);
+  // Multiplying the results, mod p
   mpz_mul(*digest, *digest, aux);
-  mpz_mod(*digest, *digest, pk[2]);
+  mpz_mod(*digest, *digest, pk[P]);
+  // Making r[0] - result:
+  mpz_sub(*digest, rnd[0], *digest);
+  mpz_mod(*digest, *digest, pk[Q]);
   mpz_clear(aux);
   return digest;
 }
 
+void _FirstPreImage(SK sk, MSG msg, unsigned msg_size, DIGEST C, RND *r2){
+  //r2[0] = C + g^k mod p mod q
+  unsigned int K = 65537;
+  mpz_powm_ui(*r2[0], sk[G], K, sk[P]);
+  mpz_add(*r2[0], *r2[0], C);
+  mpz_mod(*r2[0], *r2[0], sk[P]);
+  mpz_mod(*r2[0], *r2[0], sk[Q]);
+  // r2[1] = k-(msg)x mod q
+  mpz_mul(*r2[1], msg, sk[X]);
+  mpz_ui_sub(*r2[1], K, *r2[1]);
+  mpz_mod(*r2[1], *r2[1], sk[Q]);
+}
+
 void _Collision(SK sk, MSG msg, unsigned msg_size, RND r, MSG m2, RND *r2){
-  // r2 = (m +xr - m2)x^(-1) mod q
-  mpz_t inv;
-  mpz_init(inv);
-  // Getting x^(-1)
-  mpz_invert(inv, sk[0], sk[1]);
-  // Calculating:
-  mpz_mul(*r2, sk[0], r); // xr
-  mpz_add(*r2, *r2, msg); // xr+m
-  mpz_sub(*r2, *r2, m2); // xr+m-m2
-  mpz_mul(*r2, *r2, inv);
-  mpz_mod(*r2, *r2, sk[1]);
-  // Ending
-  mpz_clear(inv);
+  DIGEST *digest = _Hash(sk -> pk, msg, msg_size, rnd);
+  _FirstPreImage(sk, msg2, msg_size, *digest, r);
+  mpz_clear(*digest);
+  free(digest);
 }
 
 struct chameleon_hash_scheme *new_chameleon_hash_scheme(void){
@@ -184,7 +190,7 @@ struct chameleon_hash_scheme *new_chameleon_hash_scheme(void){
     return NULL;
   new -> KeyGen = _KeyGen;
   new -> Hash = _Hash;
-  new -> FirstPreImage = NULL;
+  new -> FirstPreImage = _FirstPreImage;
   new -> FreePairOfKeys = _FreePairOfKeys;
   new -> RandomR = _RandomR;
   new -> Collision = _Collision;
@@ -197,8 +203,8 @@ void benchmark(int security_parameter){
   PAIR_OF_KEYS pksk;
   DIGEST *digest, *digest2;
   RND r, r2;
+  RND m;
   char *string;
-  mpz_t m, m2;
   mpz_init(r2);
   struct chameleon_hash_scheme *CH = new_chameleon_hash_scheme();
   // Keygen
@@ -218,7 +224,7 @@ void benchmark(int security_parameter){
     CH -> RandomR(pksk -> pk, &r);
     CH -> RandomR(pksk -> pk, &m);
     TIMER_BEGIN();
-    digest = CH -> Hash(pksk -> pk, m, 0, r);
+    digest = CH -> Hash(pksk -> pk, m[0], 0, r);
     TIMER_END();
     FreeDigest(digest);
     mpz_clear(r);
@@ -228,13 +234,13 @@ void benchmark(int security_parameter){
   TIMER_RESULT();
   CH -> RandomR(pksk -> pk, &r);
   CH -> RandomR(pksk -> pk, &m);
-  digest = CH -> Hash(pksk -> pk, m, 0, r);
+  digest = CH -> Hash(pksk -> pk, m[0], 0, r);
   // Collision
   for(i = 0; i < N; i ++){
     int j;
-    CH -> RandomR(pksk -> pk, &m2);
+    CH -> RandomR(pksk -> pk, &m);
     TIMER_BEGIN();
-    CH -> Collision(pksk -> sk, m, 0, r, m2, &r2);
+    CH -> FirstPreImage(pair -> sk, m[0], 0, r, m[1], &r2);
     TIMER_END();
     mpz_clear(m2);
   }
@@ -256,7 +262,7 @@ int main(int argc, char **argv){
   char *string1, *string2, *string3;
   DIGEST *digest, *digest2;
   RND r, r2;
-  RND m, m2;
+  RND m;
   int security_parameter;
   if(argc >= 2)
     security_parameter = atoi(argv[1]);
@@ -272,28 +278,31 @@ int main(int argc, char **argv){
   mpz_init(r2);
   struct chameleon_hash_scheme *CH = new_chameleon_hash_scheme();
   pair = CH -> KeyGen(security_parameter);
-  string1 = mpz_get_str(NULL, 10, pair -> sk[0]);
+  string1 = mpz_get_str(NULL, 10, pair -> sk[X]);
   printf("SK = %s\n", string1);
   free(string1);
-  string1 = mpz_get_str(NULL, 10, pair -> pk[0]);
+  string1 = mpz_get_str(NULL, 10, pair -> pk[Y]);
   printf("PK = %s\n", string1);
   free(string1);
   CH -> RandomR(pair -> pk, &r);
   CH -> RandomR(pair -> pk, &m);
-  CH -> RandomR(pair -> pk, &m2);
-  string1 = mpz_get_str(NULL, 10, r);
-  digest = CH -> Hash(pair -> pk, m, 0, r);
+  string1 = mpz_get_str(NULL, 10, r[0]);
+  string3 = mpz_get_str(NULL, 10, r[1]);
+  digest = CH -> Hash(pair -> pk, m[0], 0, r);
   string2 = mpz_get_str(NULL, 10, *digest);
-  printf("Hash(M1, %s) = %s\n", string1, string2);
+  printf("Hash(M1, (%s, %s)) = %s\n", string1, string3, string2);
   free(string1);
   free(string2);
-  CH -> Collision(pair -> sk, m, 0, r, m2, &r2);
-  string1 = mpz_get_str(NULL, 10, r2);
-  digest2 = CH -> Hash(pair -> pk, m2, 0, r2);
+  free(string3);
+  CH -> FirstPreImage(pair -> sk, m[0], 0, r, m[1], &r2);
+  string1 = mpz_get_str(NULL, 10, r2[0]);
+  string3 = mpz_get_str(NULL, 10, r2[1]);
+  digest2 = CH -> Hash(pair -> pk, m[1], 0, r2);
   string2 = mpz_get_str(NULL, 10, *digest2);
-  printf("Hash(M2, %s) = %s\n", string1, string2);
+  printf("Hash(M2, (%s, %s)) = %s\n", string1, string3, string2);
   free(string1);
   free(string2);
+  free(string3);
   FreeDigest(digest);
   FreeDigest(digest2);
   mpz_clear(r);

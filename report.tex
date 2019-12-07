@@ -112,9 +112,9 @@ esquema:
     }
   \end{algorithm}
 
-\item\textbf{Ocultação de Mensagem ou Resistência à Forja} As duas
-  propriedades acima são mutualmente excludentes, mas um Esquema de
-  Hash Camaleão deve possuir uma delas para ser válida.
+\item\textbf{Ocultação de Mensagem ou Resistência à Falsificação} As
+  duas propriedades acima são mutualmente excludentes, mas um Esquema
+  de Hash Camaleão deve possuir uma delas para ser válida.
 
   A \textbf{Ocultação de Mensagem} implica na existência de um
   algoritmo determinístico \textbf{IForge}: $(\mathcal{PK}, m, r, m',
@@ -122,7 +122,7 @@ esquema:
   Hash(\mathcal{PK}, m', r') = C$, então $Hash(\mathcal{PK}, m'',
   r'')=C$.
 
-  A \textbf{Resistência à Forja} afirma que para todo algoritmo
+  A \textbf{Resistência à Falsificação} afirma que para todo algoritmo
   probabilístico $\mathcal{A}$ que recebe uma chave pública
   $\mathcal{PK}$ e pode consultar um número polinomial de vezes um
   oráculo que retorna diferentes resultados de
@@ -547,21 +547,30 @@ $$
 Assumindo $\mathcal{H}(m||r_1)$ como o cálculo de um hash
 criptográfico convencional da concatenação de $m$ e $r_1$.
 
-\textbf{FirstPreImage:} Não definida.
-
-\textbf{Collision:} A função pode ser definida gerando um $k$ aleatório
-módulo $q$ e obtendo:
+\textbf{FirstPreImage:} Seja $C$ o valor da hash desejada para uma
+mensagem $m$, gere $r_1$ pela fórmula abaixo para qualquer $k$
+aleatório:
 
 $$
-r_1' = \left[(Hash(m, (r_1, r_2)) + (g^k \mod p))\right] \mod q
+r_1' = \left[(C + (g^k \mod p))\right] \mod q
 $$
+
+E gere $r_2$ de acordo com a equação abaixo usando o mesmo valor $k$:
 
 $$
 r_2 = \left[k-\mathcal{H}(m'||r_1')x\right] \mod q
 $$
 
-Isso funciona, pois se formos usar tais valores para computar o hash
-da mensagem $m'$, obtemos:
+\textbf{Collision:} Como existe uma função $FirstPreImage$, podemos
+obter uma colisão calculando:
+
+$$ Collision(\mathcal{Sk}, m, r, m') = FirstPreImage(\mathcal{SK},
+Hash(\mathcal{PK}, m, r), m')
+$$
+
+Isso funciona e nos retorna $(r_1', r_2')$ com as propriedaes
+desejadas, pois se formos usar tais valores para computar o hash da
+mensagem $m'$, obtemos:
 
 \begin{equation}
 \begin{split}
@@ -608,7 +617,7 @@ mensagem. A quarta se ele é resistente à falsificação. E a quinta se
 \begin{center}
 \begin{tabular}{|c|c|c|c|c|} 
   \hline
-  Esquema&E.C.&O.M.&/Resistência à Falsificação&1$^{\rm a}$ pré-imagem\\
+  Esquema&E.C.&O.M.&R.F.&1$^{\rm a}$ pré-imagem\\
   \hline
   2.1&X&\ok&X&\ok\\
   \hline
@@ -616,7 +625,7 @@ mensagem. A quarta se ele é resistente à falsificação. E a quinta se
   \hline
   2.3&X&\ok&X&X\\
   \hline
-  2.4&\ok&\ok&X&X\\
+  2.4&\ok&\ok&X&\ok\\
   \hline
   2.5&\ok&X&\ok&X\\
   \hline
