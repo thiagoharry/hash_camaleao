@@ -548,17 +548,17 @@ Assumindo $\mathcal{H}(m||r_1)$ como o cálculo de um hash
 criptográfico convencional da concatenação de $m$ e $r_1$.
 
 \textbf{FirstPreImage:} Seja $C$ o valor da hash desejada para uma
-mensagem $m$, gere $r_1$ pela fórmula abaixo para qualquer $k$
+mensagem $m$, gere $r_1'$ pela fórmula abaixo para qualquer $k$
 aleatório:
 
 $$
 r_1' = \left[(C + (g^k \mod p))\right] \mod q
 $$
 
-E gere $r_2$ de acordo com a equação abaixo usando o mesmo valor $k$:
+E gere $r_2'$ de acordo com a equação abaixo usando o mesmo valor $k$:
 
 $$
-r_2 = \left[k-\mathcal{H}(m'||r_1')x\right] \mod q
+r_2' = \left[k-\mathcal{H}(m'||r_1')x\right] \mod q
 $$
 
 \textbf{Collision:} Como existe uma função $FirstPreImage$, podemos
@@ -599,10 +599,182 @@ mensagem $m'$, obtemos:
 
 %\textbf{Cálculo de Primeira Pré-Imagem: }Não.
 
+\subsubsection{Variações}
+
+Ateniese e Medeiros, no mesmo artigo em que apresentou esta construção,
+apontou que é possível definir a função hash como:
+
+$$ Hash(\mathcal{PK}, m, r) =
+\left(r_1y^{\mathcal{H}(m||r_1)}g^{r_2} \right)\mod p
+$$
+
+Em tal caso, para obter a função $FirstPreImage$, o cálculo de $r_2'$
+não se modifica, mas $r_1'$ é obtido com a nova fórmula:
+
+$$
+r_1'=Cg^{-k} \mod p
+$$
+
+\subsubsection{Medida de Desempenho}
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+  \hline
+  KeyGen & 0,005568s & Hash & 0,009608s & Collision & 0,000044s\\
+  \hline
+\end{tabular}
+\end{center}
+
+
 \subsection{Construção Baseada em Reticulados (David Cash)
   (2010)\cite{reticulado}}
 
-A escrever.
+A segurança deste esquema não se baseia em fatoração de números ou no
+logaritmo discreto, mas no Problema da Solução Inteira Pequena (SIS),
+um problema baseado em reticulados. Isso torna este esquema seguro
+mesmo diante de computadores quânticos até onde se sabe.
+
+A segurança desta construção se baseia no fato de que é difícil
+encontrar qualquer vetor $x$ inteiro cuja norma euclideana é
+suficientemente pequena tal que $Ax = b$, onde $A$ é uma matriz
+inteira retangular suficientemente grande em termos de número de
+colunas e $b$ é um vetor conhecido.
+
+A construção utiliza sempre matrizes e vetores inteiros módulo $q$ nas
+definições seguintes.
+
+\subsubsection{Funções}
+
+\textbf{Keygen:} Seja $H \in \mathbb{Z}^{n\times n}$ uma matriz
+inversível qualquer, podendo ser uma matriz identidade e $G$ uma
+matriz selecionada previamente tal que para $G$ é conhecido método
+eficiente de obter valores de $x$ com norma euclideana pequena tais
+que $Gx = b$.
+
+Como chave privada, gere uma matriz aleatória $R \in \mathbb{Z}^{w
+  \times n}$. Os valores dela devem ser pequenos para aumentar a
+qualidade do \textit{trapdoor}.
+
+Como chave pública gere a matriz $A=[\overline{A}|HG-\overline{A}R]$,
+onde $\overline{A}$ é uma submatriz inteira gerada aleatoriamente.
+
+O objetivo desta construção é que com isso geramos matrizes tais que:
+
+$$
+A\left[\begin{matrix}R\\I\end{matrix}\right] = HG
+$$
+
+\textbf{Hash: } Seja $\mathcal{H}$ uma função hash convencional tal
+que a saída dela possa ser interpretada como um vetor inteiro módulo
+$q$ com mesmo número de elementos que o número de linhas de
+$A$. Definimos a função hash do esquema como:
+
+$$
+Hash(\mathcal{PK}=A, m, r) = \mathcal{H}(m) + Ar \mod q
+$$
+
+\textbf{Collision: } Como queremos encontrar uma colisão, dado $m$,
+$r$ e $m'$, queremos encontrar um valor $r'$ de norma euclideana
+pequena tal que:
+
+$$
+\mathcal{H}(m) + Ar  \equiv \mathcal{H}(m') + Ar' \pmod q
+$$
+
+O valor de $r'$ é então uma solução para a equação $Ax =
+\mathcal{H}(m) - \mathcal{H}(m') + Ar \mod q$.
+
+Par obter uma solução para esta equação utiliza-se um vetor qualquer
+de norma euclideana pequena $p$ e obtém-se o valor $x'$ tal que ele
+seja a solução para a equação abaixo:
+
+$$
+Gx' = H^{-1}(\mathcal{H}(m) - \mathcal{H}(m') + Ar - Ap) \mod q
+$$
+
+Dados os valores de $x'$ e $p$, a nossa função $Collision$ é definida
+como:
+
+$$ Collision(\mathcal{SK}=R, m, r, m') = p +
+\left[\begin{matrix}R\\I\end{matrix}\right]x' \mod q
+$$
+
+\textbf{Prova:}
+
+Para provar que o resultado obtido é correto, basta mostrarmos que o
+valor retornado pela função acima é uma solução para $Ax =
+\mathcal{H}(m) - \mathcal{H}(m') + Ar \mod q$. Se multiplicarmos o
+resultado da função de colisão pela matriz $A$ obtemos:
+
+$$ A(p+\left[\begin{matrix}R\\I\end{matrix}\right]x') = Ap +
+A\left[\begin{matrix}R\\I\end{matrix}\right]x'\\
+$$
+
+Temos que $A\left[\begin{matrix}R\\I\end{matrix}\right] = HG$:
+
+$$
+Ap + A\left[\begin{matrix}R\\I\end{matrix}\right]x' = Ap + HGx'
+$$
+
+Sabemos também que $Gx' = H^{-1}(\mathcal{H}(m) - \mathcal{H}(m') + Ar
+- Ap)$, e portanto:
+
+$$
+Ap + HGx' = Ap + H H^{-1}(\mathcal{H}(m) - \mathcal{H}(m') + Ar - Ap)
+$$
+
+Após multiplicar $H$ pela sua inversa e dos dis termos $Ap$ se
+anularem, obtemos o resultado que queríamos para mostrar a corretude
+da função de colisão.
+
+\subsubsection{Detalhes da Construção}
+
+Para garantir a segurança do esquema, o número de colunas da matriz
+$A$ de $n$ linhas deve ser ao menos $n\log q$. Além disso, só devemos
+considerar um vetor como tendo uma norma euclideana suficientemente
+pequena para ser aceito como solução quando a norma dele é no máximo
+um valor próximo de $\sqrt{n \log q}$.
+
+\textbf{Construção da matriz G:}
+
+Seja $q=2^k$. Seja o vetor $g=[1, 2, 4, 8, \ldots, 2^{k-1}]$. Podemos
+construir a matriz $G$ então como:
+
+$$
+\left[\begin{matrix}
+    g & \ldots & \ldots & \ldots\\
+    \ldots & g & \ldots & \ldots\\
+    \vdots & \vdots & \ddots & \vdots\\
+    \ldots & \ldots & \ldots & g\\
+  \end{matrix}\right]
+$$
+
+Desta forma, podemos encontrar uma solução para uma equação $Gx=u \mod
+q$ simplesmente escolhendo $x$ como a representação binária de
+$u$. Esta é uma forma viável de gerar vetores suficientemente pequenos
+apenas quando temos uma construção com um valor muito pequeno de $n$.
+
+Para os demias casos, o modo recomendado de obter uma solução é gerar
+um reticulado com uma base formada pela matriz esparsa preenchida por
+2 na diagonal e com um valor -1 abaixo de cada diagonal e obter um
+vetor suficientemente pequeno por meio de algoritmos de amostragem
+gaussiana.
+
+\subsubsection{Medida de Desempenho}
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+  \hline
+  KeyGen & -- & Hash & 0,0017129s & Collision & --\\
+  \hline
+\end{tabular}
+\end{center}
+
+Também é importante mencionar que para valores consifderados seguros,
+o tamanho da chave privada nesta construção chega a 613KB. A chave
+pública é seis vezes menor e pode ser reduzida muito mais por meio das
+mesmas técnicas utilizadas para reduzir tamanhos de chave de funções
+hash baseados em reticulados.
 
 \subsection{Características dos Esquemas Apresentados}
 
@@ -610,27 +782,24 @@ A tabela abaixo sintetiza as características mais relevantes dos
 esquemas vistos nesta seção. Cada esquema está identificado pelo
 número da subseção em que ele foi apresentado.
 
-A segunda coluna informa se o esquema é livre do problema de exposição
-de chaves. A terceira coluna se ele tem a propriedade de ocultação de
-mensagem. A quarta se ele é resistente à falsificação. E a quinta se 
-
 \begin{center}
-\begin{tabular}{|c|c|c|c|c|} 
-  \hline
-  Esquema&E.C.&O.M.&R.F.&1$^{\rm a}$ pré-imagem\\
-  \hline
-  2.1&X&\ok&X&\ok\\
-  \hline
-  2.2&\ok&X&\ok&\ok\\
-  \hline
-  2.3&X&\ok&X&X\\
-  \hline
-  2.4&\ok&\ok&X&\ok\\
-  \hline
-  2.5&\ok&X&\ok&X\\
-  \hline
-\end{tabular}
+  \begin{tabular}{|c|c|c|c|c|c|}
+    \hline
+    Esquema&2.1&2.2&2.3&2.4&2.5\\
+    \hline
+    Livre de Exposição de Chave&X&\ok&X&\ok&\ok\\
+    \hline
+    Ocultação de Mensagem&\ok&X&\ok&\ok&X\\
+    \hline
+    Resistência à Falsificação&X&\ok&X&X&\ok\\
+    \hline
+    Primeira Pré-Imagem&\ok&\ok&X&\ok&X\\
+    \hline
+  \end{tabular}
 \end{center}
+
+
+\section{Hashes Camaleão com ID}
 
 \subsection{Construção Baseada no RSA (Ateniese e Medeiros) (2005)\cite{ateniese}}
 
@@ -1177,71 +1346,7 @@ TODO
 
 \section{Conclusão}
 
-Em resumo, estas são as propriedades dos esquemas apresentados aqui,
-de acordo com no número da seção em que eles aparecem:
-
-\begin{center}
-\begin{tabular}{|c|c|c|c|} 
-  \hline
-  Esquema&Sem exposição de chave&Ocultação de mensagem&1$^{\rm a}$ pré-imagem\\
-  \hline
-  2&X&\ok&\ok\\
-  \hline
-  3&X&\ok&X\\
-  \hline
-  4&\ok&\ok&X\\
-  \hline
-  5&\ok&X&X\\
-  \hline
-  6&\ok&X&X\\
-  \hline
-  7&\ok&\ok&X\\
-  \hline
-  8&\ok&X&X\\
-  \hline
-  9&\ok&\ok&X\\
-  \hline
-  10&\ok&\ok&\ok\\
-  \hline
-  11&\ok&\ok&\ok\\
-  \hline
-\end{tabular}
-\end{center}
-
-Nota-se que o único esquema acima que apresenta a propriedade de
-encontrar a primeira pré-imagem com a chave privada do hash foi o
-primeiro apresentado. Embora esse esquema tenha a grave falha de expor
-a chave diante de colisões, isso se dá principalmente devido à função
-de permutação escolhida. Analizando o artigo, me parece que a escolha
-de outras funções de permutação, tais como o próprio RSA livraria o
-esquema de tal falha e permitiria que tal propriedade pudesse ser
-explorada.
-
-Os dois primeiros esquemas são livres da ocultação de mensagem somente
-porque qualquer esquema que exponha a chave privada diante de uma
-colisão tem tal propriedade como efeito colateral da exposição da
-chave privada.
-
-Nota-se que a maioria dos esquemas propostos é obtida combinando
-esquemas de assinatura e criptografia assimétricos, onde funções de
-assinar e cifrar são inversas entre si, junto com operações adicionais
-envolvendo o valor complementar de $r$ de modo a obter as propriedades
-desejadas. O primeiro esquema apresentado é uma notável exceção e ele
-também nos apresenta a possibilidade de obtermos um hash camaleão à
-partir de pares de funções de permutação que podem ser invertidas com
-trapdoor e onde é difícl calcular valores para os quais ambas as
-funções nos dão o mesmo resultado.
-
-Existem outras construções possíveis que podem ser encontradas na
-literatura e não foram analizadas aqui. Na literatura também podemos
-encontrar sugestões de aplicação de hashes camaleão em protocolos que
-tentam preservar privacidade de agentes, em aplicações envolvendo
-assinaturas sanitizáveis, assinaturas camaleão e certificados
-dinâmicos. Também existem propostas de construções de hashes camaleão
-onde pode existir mais de uma chave privada diferente, com qualquer
-uma delas podendo ser usada para obter colisão, e também propostas que
-condicionam encontrar colisões à posse de duas chaves diferentes, que
-poderiam pertencer à diferentes entidades.
+TODO
 
 \bibliography{report}{}\bibliographystyle{plain}
 
