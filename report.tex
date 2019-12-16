@@ -625,6 +625,60 @@ $$
 \end{tabular}
 \end{center}
 
+\subsection{Construção Baseada no Protocolo Sigma de Fiat-Shamir
+  (Mihir Bellare e Todor Ristov) (2008)\cite{sigma}}
+
+Esta construção foi obtida em um artigo no qual os autores estavam
+demonstrando a possibilidade de construir novas funções hash com
+provas de segurança à partir de protocolos sigma. Eles demonstraram
+que as funções hash que eles obtiveram também tinham a propriedade de
+ser hashes camaleão.
+
+\subsubsection{Funções}
+
+\textbf{KeyGen: } Gere dois primos aleatórios $p$ e $q$. Faça $n=pq$.
+
+Como chave pública, gere um vetor $s$ de $k$ números que sejam
+resíduos quadráticos módulo $n$, sendo $k$ o número de bits das
+mensagens a serem recebidas. Para adotar as melhorias propostas no
+Protocolo Micali-Shamir, tais números devem ser primos pequenos que
+sejam resíduos quadráticos módulo $n$, Adicione também à chave o valor
+$n$.
+
+Como chave privada, gere um vetor $v$ de $k$ números tal que
+$v_i=s_i^{-2} \mod n$ e também adicione à chave os fatores $p$ e $q$.
+
+\textbf{Hash: } Seja a mensagem $m$ um vetor binário com $k$ bits e
+sendo $r \leq n/2$, a hash é obtida por:
+
+$$ Hash(\mathcal{PK}, m, r) = r^2\prod_{m_i=1}v_i \mod n
+$$
+
+\textbf{FirstPreImage: } Esta função é definida como:
+
+$$
+FirstPreImage(\mathcal{SK}, C, m') = \sqrt{C}\prod_{m'_i=1}s_i \mod n
+$$
+
+A raíz quadrada modular só pode ser calculada por quem conheça os
+fatores primos de $n$. A fórmula acima funciona, pois:
+
+$$ C = r^2\prod_{m_i=1}v_i =
+r^2\prod_{m_i=1}\frac{1}{s_i^2}\Longrightarrow r=\sqrt{C}\prod_{m'_i=1}s_i
+$$
+
+\subsubsection{O Problema da Exposição de Chave}
+
+Esta construção não é livre de exposição de chave. Se somos capazes de
+obter uma colisão na qual as duas mensagens que colidem possuem bits
+1s nas mesmas posições, para cada bit 1 em comum, podemos gerar uma
+nova colisão para novas mensagens idênticas, mas que possuem o bit 1
+correspondente trocado para 0, mantendo os parâmetros aleatórios das
+mensagens idênticos.
+
+Sendo assim, a probabilidade de que uma colisão não revele novas
+colisões derivadas é negligível.
+
 
 \subsection{Construção Baseada em Reticulados (David Cash)
   (2010)\cite{reticulado}}
@@ -783,17 +837,17 @@ esquemas vistos nesta seção. Cada esquema está identificado pelo
 número da subseção em que ele foi apresentado.
 
 \begin{center}
-  \begin{tabular}{|c|c|c|c|c|c|}
+  \begin{tabular}{|c|c|c|c|c|c|c|}
     \hline
-    Esquema&2.1&2.2&2.3&2.4&2.5\\
+    Esquema&2.1&2.2&2.3&2.4&2.5&2.6\\
     \hline
-    Livre de Exposição de Chave&X&\ok&X&\ok&\ok\\
+    Livre de Exposição de Chave&X&\ok&X&\ok&X&\ok\\
     \hline
-    Ocultação de Mensagem&\ok&X&\ok&\ok&X\\
+    Ocultação de Mensagem&\ok&X&\ok&X&\ok&X\\
     \hline
-    Resistência à Falsificação&X&\ok&X&X&\ok\\
+    Resistência à Falsificação&X&\ok&X&\ok&X&\ok\\
     \hline
-    Primeira Pré-Imagem&\ok&\ok&X&\ok&X\\
+    Primeira Pré-Imagem&\ok&\ok&X&\ok&\ok&X\\
     \hline
   \end{tabular}
 \end{center}
