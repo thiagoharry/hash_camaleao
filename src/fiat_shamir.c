@@ -34,7 +34,7 @@ typedef struct _PAIR_OF_KEYS{
 /********************* TIMER **************************************/
 #include <sys/time.h>
 #include <math.h>
-#define N 10000
+#define N 2
 unsigned long t_sum = 0;
 unsigned long measures[N];
 int _i = 0;
@@ -49,7 +49,7 @@ int _i = 0;
     double mean = ((double) t_sum) / ((double) N);			\
     unsigned long _dif_squared = 0;					\
     for(_i = 0; _i < N; _i ++)						\
-      _dif_squared += (measures[_i] - mean) * (measures[i] - mean);	\
+      _dif_squared += (measures[_i] - mean) * (measures[_i] - mean);	\
     printf("Mean: %.6fs ± %.6fs\n", 0.000001 * mean,			\
 	   0.000001 * (sqrt(((double) _dif_squared) / (double) (N-1)))); \
     _i = t_sum = 0;							\
@@ -74,7 +74,7 @@ PAIR_OF_KEYS _KeyGen(unsigned n){
   mpz_init(pair -> sk.q);
   mpz_init(pair -> sk.n);
   mpz_init(pair -> pk.n);
-  for(i = 0; i < K; i ++){
+  for(i = 0; i < K * 8; i ++){
     mpz_init(pair -> sk.v[i]);
   }
   // generating p:
@@ -106,6 +106,7 @@ PAIR_OF_KEYS _KeyGen(unsigned n){
   }
   pair -> pk.bits = n;
   pair -> sk.pk = &(pair -> pk);
+  mpz_clear(tmp);
   return pair;
 }
 
@@ -115,7 +116,7 @@ void _FreePairOfKeys(PAIR_OF_KEYS pksk){
   mpz_clear(pksk -> sk.p);
   mpz_clear(pksk -> sk.q);
   mpz_clear(pksk -> sk.n);
-  for(i = 0; i < K; i ++)
+  for(i = 0; i < K * 8; i ++)
     mpz_clear(pksk -> sk.v[i]);
   free(pksk);
 }
@@ -197,9 +198,9 @@ struct chameleon_hash_scheme *new_chameleon_hash_scheme(void){
 }
 
 void benchmark(int security_parameter){
-  int i;
+  int i, j;
   PAIR_OF_KEYS pksk;
-  DIGEST *digest, *digest2;
+  DIGEST *digest;
   RND r, r2;
   MSG m;
   char *string;
@@ -218,9 +219,9 @@ void benchmark(int security_parameter){
   // Hash
   string = (char *) malloc(security_parameter + 1);
   for(i = 0; i < N; i ++){
-    int j;
     CH -> RandomR(pksk -> pk, &r);
-    // TODO: init m
+    for(j = 0; j < K; j ++)
+      m[j] = rand();
     TIMER_BEGIN();
     digest = CH -> Hash(pksk -> pk, m, 0, r);
     TIMER_END();
@@ -230,12 +231,13 @@ void benchmark(int security_parameter){
   printf("Hash: ");
   TIMER_RESULT();
   CH -> RandomR(pksk -> pk, &r);
-  // TODO: init m
+  for(j = 0; j < K; j ++)
+    m[j] = rand();
   digest = CH -> Hash(pksk -> pk, m, 0, r);
   // Collision
   for(i = 0; i < N; i ++){
-    int j;
-    // TODO: init m
+    for(j = 0; j < K; j ++)
+      m[j] = rand();
     TIMER_BEGIN();
     CH -> FirstPreImage(pksk -> sk, m, 0, *digest, &r2);
     TIMER_END();
@@ -254,7 +256,7 @@ void benchmark(int security_parameter){
 int main(int argc, char **argv){
   int i;
   PAIR_OF_KEYS pair;
-  char *string1 = NULL, *string2 = NULL, *string3 = NULL;
+  char *string1 = NULL, *string2 = NULL;
   DIGEST *digest, *digest2;
   RND r, r2;
   char *m = "ChameleonHashChameleonHashChameleonHashChameleonHashChameleonH";
@@ -284,20 +286,20 @@ int main(int argc, char **argv){
   free(string1);
   for(i = 0; i < K * 8; i ++){
     if(i != K * 8 - 1)
-      printf("%lu, ", pair -> pk.s[i]);
+      printf("%u, ", pair -> pk.s[i]);
     else
-      printf("%lu)\n", pair -> pk.s[i]);
+      printf("%u)\n", pair -> pk.s[i]);
   }
   CH -> RandomR(pair -> pk, &r);
   string1 = mpz_get_str(NULL, 10, r);
-  digest = CH -> Hash(pair -> pk, m, 0, r);
+  digest = CH -> Hash(pair -> pk, (uint8_t *) m, 0, r);
   string2 = mpz_get_str(NULL, 10, *digest);
   printf("Hash(%s, %s) = %s\n", m, string1, string2);
   free(string1);
   free(string2);
-  CH -> FirstPreImage(pair -> sk, m2, 0, *digest, &r2);
+  CH -> FirstPreImage(pair -> sk, (uint8_t *) m2, 0, *digest, &r2);
   string1 = mpz_get_str(NULL, 10, r2);
-  digest2 = CH -> Hash(pair -> pk, m2, 0, r2);
+  digest2 = CH -> Hash(pair -> pk, (uint8_t *) m2, 0, r2);
   string2 = mpz_get_str(NULL, 10, *digest2);
   printf("Hash(%s, %s) = %s\n", m2, string1, string2);
   free(string1);

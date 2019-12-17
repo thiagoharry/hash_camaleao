@@ -52,7 +52,7 @@ int root_mod(mpz_t result, const mpz_t arg, const mpz_t prime){
   return 1;
 }
 
-int root_mod_pq(mpz_t result, const mpz_t arg, const mpz_t n, const mpz_t p,
+void root_mod_pq(mpz_t result, const mpz_t arg, const mpz_t n, const mpz_t p,
 		const mpz_t q){
   mpz_t exp, tmp;
   mpz_t root0, root1;
@@ -113,7 +113,6 @@ int root_mod_pq(mpz_t result, const mpz_t arg, const mpz_t n, const mpz_t p,
     mpz_clear(root0);
     mpz_clear(root1);
   }
-
 }
 
 void mod_random_prime(mpz_t p, unsigned n){

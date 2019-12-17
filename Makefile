@@ -1,6 +1,6 @@
 CC=gcc
 PROG=chamhash
-FLAGS=-O2 -g
+FLAGS=-O2 -g -Wall
 LIB=-lgmp -lbsd -lm
 
 all:
