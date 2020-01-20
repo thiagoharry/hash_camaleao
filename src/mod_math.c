@@ -118,7 +118,7 @@ void root_mod_pq(mpz_t result, const mpz_t arg, const mpz_t n, const mpz_t p,
 void mod_random_prime(mpz_t p, unsigned n){
   int i;
   char *string = (char *) malloc(n + 1);
-  do{ // Generating x positive lesser than q
+  do{ // Generating p positive lesser than q
     string[0] = '1';
     for(i = 1; i < n - 1; i ++)
       if(arc4random_uniform(2))
@@ -150,4 +150,25 @@ bool is_quadratic_residue(mpz_t a, mpz_t n){
     mpz_clear(tmp);
     return true;
   }
+}
+
+void mod_random_number(mpz_t *result, mpz_t mod){
+  char *num;
+  size_t size;
+  int i;
+  size = mpz_sizeinbase(mod, 2);
+  num = (char *) malloc(size + 1);
+  // Generate random value uniformly distributed between 0 and ppk
+  // Whats the size of ppk in base 32767? (int minimal size)
+  do{
+    for(i = 0; i < size; i ++){
+      if(arc4random_uniform(2))
+	num[i] = '1';
+      else
+	num[i] = '0';
+    }
+    num[size] = '\0';
+    mpz_set_str(*result, num, 2);
+  }while(mpz_cmp(*result, mod) >= 0 || mpz_cmp_ui(*result, 0) == 0);
+  free(num);
 }

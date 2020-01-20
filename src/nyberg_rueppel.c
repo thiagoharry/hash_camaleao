@@ -2,6 +2,8 @@
 #include <gmp.h>
 #include <bsd/stdlib.h>
 
+#include "timer.c"
+
 // KeyGen:    0.
 // Hash:      0.
 // Collision: 0.
@@ -36,30 +38,6 @@ typedef struct _PAIR_OF_KEYS{
 
 #include "chameleon_hash.h"
 
-/********************* TIMER **************************************/
-#include <sys/time.h>
-#include <math.h>
-#define N 10000
-unsigned long t_sum = 0;
-unsigned long measures[N];
-int _i = 0;
-#define TIMER_BEGIN() { struct timeval _begin, _end;	\
-  gettimeofday(&_begin, NULL);
-#define TIMER_END() gettimeofday(&_end, NULL);		  \
-  measures[_i] = 1000000 * (_end.tv_sec - _begin.tv_sec) +	\
-    _end.tv_usec - _begin.tv_usec;				\
-  t_sum += measures[_i];					\
-  _i ++;}
-#define TIMER_RESULT() {					\
-    double mean = ((double) t_sum) / ((double) N);			\
-    unsigned long _dif_squared = 0;					\
-    for(_i = 0; _i < N; _i ++)						\
-      _dif_squared += (measures[_i] - mean) * (measures[i] - mean);	\
-    printf("Mean: %.6fs ± %.6fs\n", 0.000001 * mean,			\
-	   0.000001 * (sqrt(((double) _dif_squared) / (double) (N-1)))); \
-    _i = t_sum = 0;							\
-  }
-/********************* TIMER **************************************/
 
 void FreeDigest(DIGEST *digest){
   mpz_clear(*digest);

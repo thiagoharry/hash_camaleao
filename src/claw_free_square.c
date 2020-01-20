@@ -6,40 +6,242 @@
 #include <unistd.h>
 #include "mod_math.h"
 
+#include "timer.c"
+
+#define MSG_SIZE 64
+
 // KeyGen:    0.43400s
 // Hash:      0.00104s
 // Collision: 1.79000s
 
-#define MSG_SIZE 54
+typedef struct{
+  // p e q são primos tais que p mod 8 = 3 e q mod 8 = 7
+  // n = pq
+  // sqrt4_1 é o inverso multiplicativo da raíz de 4 módulo n
+  mpz_t p, q, n, sqrt4_1;
+} SK;
 
-typedef mpz_t PT;
-typedef mpz_t PPK;
-typedef mpz_t PSK[4]; // p, q, pq, 1/sqrt(4) mod pq
+typedef struct{
+  // n = pq
+  mpz_t n;
+} PK;
 
-/********************* TIMER **************************************/
-#include <sys/time.h>
-#include <math.h>
-#define N 2
-unsigned long t_sum = 0;
-unsigned long measures[N];
-int _i = 0;
-#define TIMER_BEGIN() { struct timeval _begin, _end;	\
-  gettimeofday(&_begin, NULL);
-#define TIMER_END() gettimeofday(&_end, NULL);		  \
-  measures[_i] = 1000000 * (_end.tv_sec - _begin.tv_sec) +	\
-    _end.tv_usec - _begin.tv_usec;				\
-  t_sum += measures[_i];					\
-  _i ++;}
-#define TIMER_RESULT() {					\
-    double mean = ((double) t_sum) / ((double) N);			\
-    unsigned long _dif_squared = 0;					\
-    for(_i = 0; _i < N; _i ++)						\
-      _dif_squared += (measures[_i] - mean) * (measures[i] - mean);	\
-    printf("Mean: %.6fs ± %.6fs\n", 0.000001 * mean,			\
-	   0.000001 * (sqrt(((double) _dif_squared) / (double) (N-1)))); \
-    _i = t_sum = 0;							\
+typedef struct{
+  char *msg;
+  int size;
+} MSG;
+
+typedef struct{
+  mpz_t rnd;
+} RND;
+
+typedef RND DIGEST;
+
+void init_digest(DIGEST *digest){
+  mpz_init(digest -> rnd);
+}
+
+void free_digest(DIGEST *digest){
+  mpz_clear(digest -> rnd);
+}
+
+void print_keys(PK *pk, SK *sk){
+  char *string1, *string2, *string3;
+  string1 = mpz_get_str(NULL, 10, sk -> p);
+  string2 = mpz_get_str(NULL, 10, sk -> q);
+  string3 = mpz_get_str(NULL, 10, pk -> n);
+  printf("SK=(p=%s, \n    q=%s)\n", string1, string2);
+  printf("PK=(n=%s)\n", string3);
+  free(string1);
+  free(string2);
+  free(string3);
+}
+
+void print_rnd(RND *r){
+  char *string1;
+  string1 = mpz_get_str(NULL, 10, r -> rnd);
+  printf("[%s]\n", string1);
+  free(string1);
+}
+
+void print_hash(RND *r, DIGEST *digest){
+  char *string1, *string2;
+  string1 = mpz_get_str(NULL, 10, r -> rnd);
+  string2 = mpz_get_str(NULL, 10, digest -> rnd);
+  printf("Hash(..., %s) = \n %s\n", string1, string2);
+  free(string1);
+  free(string2);
+}
+
+void random_rnd(PK *pk, RND *rnd){
+  mod_random_number(&(rnd -> rnd), pk -> n);
+  // Garantindo um resíduo quadrático:
+  mpz_mul(rnd -> rnd, rnd -> rnd, rnd -> rnd);
+  mpz_mod(rnd -> rnd, rnd -> rnd, pk -> n);
+}
+
+void random_msg(MSG *msg, int size){
+  int i;
+  msg -> msg = (char *) malloc(size);
+  for(i = 0; i < size; i ++)
+    arc4random_uniform(256);
+  msg -> size = size;
+}
+
+void free_msg(MSG *msg){
+  free(msg -> msg);
+}
+
+// Permutation 0: x^2 mod q
+void P0(PK *pk, RND *x, RND *result){
+  mpz_mul(result -> rnd, x -> rnd, x -> rnd);
+  mpz_mod(result -> rnd, result -> rnd, pk -> n);
+}
+
+// Permutation 1: 4x^2 mod q
+void P1(PK *pk, RND *x, RND *result){
+  mpz_mul(result -> rnd, x -> rnd, x -> rnd);
+  mpz_mul_ui(result -> rnd, result -> rnd, 4);
+  mpz_mod(result -> rnd, result -> rnd, pk -> n);
+}
+
+// Inverse of P0: sqrt(x)
+void iP0(SK *sk, RND *x, RND *result){
+  root_mod_pq(result -> rnd, x -> rnd, sk -> n, sk -> p, sk -> q);
+}
+
+// Inverse of P1: sqrt(x)/2
+void iP1(SK *sk, RND *x, RND *result){
+  iP0(sk, x, result);
+  mpz_mul(result -> rnd, result -> rnd, sk -> sqrt4_1);
+  mpz_mod(result -> rnd, result -> rnd, sk -> n);
+}
+
+
+void keygen(unsigned n, PK *pk, SK *sk){
+  unsigned long size_p, size_q;
+  char *string;
+  int i;
+  mpz_t mod;
+  mpz_init(sk -> p);
+  mpz_init(sk -> q);
+  mpz_init(sk -> n);
+  mpz_init(sk -> sqrt4_1);
+  mpz_init(pk -> n);
+  mpz_init(mod);
+  size_p = n / 2;
+  size_q = (n+1) / 2;
+  string = (char *) malloc(size_p + 1);
+  do{ // Generating p
+    string[0] = '1';
+    for(i = 1; i < size_p - 3; i ++)
+      if(arc4random_uniform(2))
+	string[i] = '1';
+      else
+	string[i] = '0';
+    // Setando os últimos bits desta forma, garantimos p \equiv 3 (mod 8)
+    if(size_p - 3 >= 0)
+      string[size_p - 3] = '0';
+    string[size_p - 2] = '1';
+    string[size_p - 1] = '1';
+    string[size_p] = '\0';
+    mpz_set_str(sk -> p, string, 2);
+    mpz_mod_ui(mod, sk -> p, 8);
+  }while(mpz_probab_prime_p(sk -> p, 50) <= 0);
+  free(string);
+  string = (char *) malloc(size_q + 1);
+  do{ // Generating q
+    string[0] = '1';
+    for(i = 1; i < size_q - 3; i ++)
+      if(arc4random_uniform(2))
+	string[i] = '1';
+      else
+	string[i] = '0';
+    // Setando os últimos bits desta forma, garantimos q \equiv 7 (mod 8)
+    string[size_q - 3] = '1';
+    string[size_q - 2] = '1';
+    string[size_q - 1] = '1';
+    string[size_q] = '\0';
+    mpz_set_str(sk -> q, string, 2);
+    mpz_mod_ui(mod, sk -> q, 8);
+  }while(mpz_probab_prime_p(sk -> q, 50) <= 0);
+  free(string);
+  mpz_clear(mod);
+  // Getting public key:
+  mpz_mul(pk -> n, sk -> p, sk -> q);
+  mpz_init_set(sk -> n, pk -> n);
+  // Storing the inverse of square root of 4 module pk:
+  {
+    mpz_t four;
+    mpz_init_set_ui(four, 4);
+    root_mod_pq(sk -> sqrt4_1, four, sk -> n, sk -> p, sk -> q);
+    mpz_invert(sk -> sqrt4_1, sk -> sqrt4_1, pk -> n);
+    mpz_clear(four);
   }
-/********************* TIMER **************************************/
+}
+
+void hash(PK *pk, MSG *msg, RND *rnd, DIGEST *digest){
+  RND r;
+  int i, j;
+  mpz_init_set(r.rnd, rnd -> rnd);
+  for(i = 0; i < msg -> size; i ++){
+    uint8_t c = msg -> msg[i];
+    for(j = 0; j < 8; j ++){
+	(c / 128)?(P1(pk, &r, &r)):(P0(pk, &r, &r));
+	c = c << 1;
+    }
+  }
+  mpz_init_set(digest -> rnd, r.rnd);
+  mpz_clear(r.rnd);
+}
+
+void firstpreimage(SK *sk, MSG *msg, DIGEST *digest, RND *result){
+  int i, j;
+  RND r;
+  mpz_init_set(r.rnd, digest -> rnd);
+  for(i = msg -> size - 1; i >= 0; i --){
+    uint8_t c = msg -> msg[i];
+    for(j = 0; j < 8; j ++){
+      (c % 2)?(iP1(sk, &r, &r)):(iP0(sk, &r, &r));
+      c = c >> 1;
+    }
+  }
+  mpz_set(result -> rnd, r.rnd);
+  mpz_clear(r.rnd);
+}
+
+int main(int argc, char **argv){
+  MSG msg1, msg2;
+  PK pk;
+  SK sk;
+  DIGEST digest;
+  RND r;
+  int security_parameter;
+  if(argc >= 2)
+    security_parameter = atoi(argv[1]);
+  if(argc < 2 || security_parameter == 0){
+    fprintf(stderr, "Usage: chamhash SECURITY_PARAMETER [--benchmark]\n");
+    exit(1);
+  }
+  init_digest(&digest);
+  keygen(security_parameter, &pk, &sk);
+  random_msg(&msg1, MSG_SIZE);
+  random_msg(&msg2, MSG_SIZE);
+  print_keys(&pk, &sk);
+  random_rnd(&pk, &r);
+  
+  hash(&pk, &msg1, &r, &digest);
+  print_hash(&r, &digest);
+  firstpreimage(&sk, &msg2, &digest, &r);
+  hash(&pk, &msg2, &r, &digest);
+  print_hash(&r, &digest);
+  free_msg(&msg1);
+  free_msg(&msg2);
+  free_digest(&digest);
+  return 0;
+}
+
+/*
 
 #define copyPT(dst, src) mpz_init_set(*dst, src)
 
@@ -48,20 +250,7 @@ void FreePT(PT *pt){
   free(pt);
 }
 
-// Permutation 0: x^2 mod q
-void P0(PPK mod, PT x, PT *result){
-  //mpz_powm_ui(*result, x, 2, mod);
-  mpz_mul(*result, x, x);
-  mpz_mod(*result, *result, mod);
 
-}
-
-// Permutation 1: 4x^2 mod q
-void P1(PPK mod, PT x, PT *result){
-  mpz_mul(*result, x, x);
-  mpz_mul_ui(*result, *result, 4);
-  mpz_mod(*result, *result, mod);
-}
 
 // Inverse of P0: sqrt(x)
 void iP0(PSK psk, PT x, PT *result){
@@ -143,68 +332,6 @@ void iP1(PSK psk, PT x, PT *result){
   //printf("%lu\n", mpz_get_ui(*result));
 }
 
-void PermutationKeyGen(unsigned n, PPK ppk, PSK psk){
-  // Private key: p, q primes such as p = 3 (mod 8) and q = 7 (mod 8).
-  // Public key: pq
-  // n is the number of bits of pq.
-  unsigned long size_p, size_q;
-  char *string;
-  int i;
-  mpz_t mod;
-  mpz_init(psk[0]);
-  mpz_init(psk[1]);
-  mpz_init(ppk);
-  mpz_init(mod);
-  size_p = n / 2;
-  size_q = (n+1) / 2;
-  string = (char *) malloc(size_p + 1);
-  // 3 e 7: 2 bits e 3 bits
-  do{ // Generating p
-    string[0] = '1';
-    for(i = 1; i < size_p - 3; i ++)
-      if(arc4random_uniform(2))
-	string[i] = '1';
-      else
-	string[i] = '0';
-    if(size_p - 3 >= 0)
-      string[size_p - 3] = '0';
-    string[size_p - 2] = '1';
-    string[size_p - 1] = '1';
-    string[size_p] = '\0';
-    mpz_set_str(psk[0], string, 2);
-    mpz_mod_ui(mod, psk[0], 8);
-  }while(mpz_probab_prime_p(psk[0], 50) <= 0);
-  free(string);
-  string = (char *) malloc(size_q + 1);
-  do{ // Generating q
-    string[0] = '1';
-    for(i = 1; i < size_q - 3; i ++)
-      if(arc4random_uniform(2))
-	string[i] = '1';
-      else
-	string[i] = '0';
-    string[size_q - 3] = '1';
-    string[size_q - 2] = '1';
-    string[size_q - 1] = '1';
-    string[size_q] = '\0';
-    mpz_set_str(psk[1], string, 2);
-    mpz_mod_ui(mod, psk[1], 8);
-  }while(mpz_probab_prime_p(psk[1], 50) <= 0);
-  free(string);
-  mpz_clear(mod);
-  // Getting public key:
-  mpz_mul(ppk, psk[0], psk[1]);
-  mpz_init_set(psk[2], ppk);
-  // Storing in psk[3] the inverse of square root of 4 module ppk:
-  {
-    mpz_t four;
-    mpz_init_set_ui(four, 4);
-    mpz_init(psk[3]);
-    iP0(psk, four, &psk[3]);
-    mpz_invert(psk[3], psk[3], ppk);
-    mpz_clear(four);
-  }
-}
 
 
 void FreePermutationKeys(PSK psk, PPK ppk){
@@ -351,3 +478,4 @@ int main(int argc, char **argv){
   free(CH);
   return 0;
 }
+*/

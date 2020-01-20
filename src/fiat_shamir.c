@@ -30,6 +30,7 @@ typedef struct _PAIR_OF_KEYS{
 } *PAIR_OF_KEYS;
 
 #include "chameleon_hash.h"
+#include "timer.c"
 
 /********************* TIMER **************************************/
 #include <sys/time.h>
