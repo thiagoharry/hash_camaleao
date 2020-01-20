@@ -80,6 +80,8 @@ void random_rnd(PK *pk, RND *rnd){
   mpz_mod(rnd -> rnd, rnd -> rnd, pk -> n);
 }
 
+#define random_digest(a, b) random_rnd(a, b)
+
 void random_msg(MSG *msg, int size){
   int i;
   msg -> msg = (char *) malloc(size);
@@ -210,6 +212,48 @@ void firstpreimage(SK *sk, MSG *msg, DIGEST *digest, RND *result){
   mpz_clear(r.rnd);
 }
 
+void benchmark(int security_parameter){
+  int i;
+  PK pk;
+  SK sk;
+  DIGEST digest;
+  RND r;
+  MSG msg;
+  init_digest(&digest);
+  // Keygen
+  for(i = 0; i < N; i ++){
+    TIMER_BEGIN();
+    keygen(security_parameter, &pk, &sk);
+    TIMER_END();
+  }
+  printf("KeyGen: ");
+  TIMER_RESULT();
+  keygen(security_parameter, &pk, &sk);
+  // Hash
+  for(i = 0; i < N; i ++){
+    random_msg(&msg, MSG_SIZE);
+    random_rnd(&pk, &r);
+    TIMER_BEGIN();
+    hash(&pk, &msg, &r, &digest);
+    TIMER_END();
+    free_msg(&msg);
+  }
+  printf("Hash: ");
+  TIMER_RESULT();
+  // Collision
+  for(i = 0; i < N; i ++){
+    random_msg(&msg, MSG_SIZE);
+    random_digest(&pk, &digest);
+    TIMER_BEGIN();
+    firstpreimage(&sk, &msg, &digest, &r);
+    TIMER_END();
+    free_msg(&msg);
+  }
+  printf("Collision: ");
+  TIMER_RESULT();
+  free_digest(&digest);
+}
+
 int main(int argc, char **argv){
   MSG msg1, msg2;
   PK pk;
@@ -223,13 +267,16 @@ int main(int argc, char **argv){
     fprintf(stderr, "Usage: chamhash SECURITY_PARAMETER [--benchmark]\n");
     exit(1);
   }
+  if(argc >= 3 && !strcmp("--benchmark", argv[2])){
+    benchmark(security_parameter);
+    exit(0);
+  }
   init_digest(&digest);
   keygen(security_parameter, &pk, &sk);
   random_msg(&msg1, MSG_SIZE);
   random_msg(&msg2, MSG_SIZE);
   print_keys(&pk, &sk);
-  random_rnd(&pk, &r);
-  
+  random_rnd(&pk, &r); 
   hash(&pk, &msg1, &r, &digest);
   print_hash(&r, &digest);
   firstpreimage(&sk, &msg2, &digest, &r);
