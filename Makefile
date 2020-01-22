@@ -13,9 +13,9 @@ claw_free_square:
 claw_free_rsa:
 	${CC} ${FLAGS} src/mod_math.c src/claw_free_rsa.c -o ${PROG} ${LIB}
 krawczyk_log:
-	${CC} ${FLAGS} src/krawczyk_log.c -o ${PROG} ${LIB}
+	${CC} ${FLAGS} src/mod_math.c src/krawczyk_log.c -o ${PROG} ${LIB}
 nyberg_rueppel:
-	${CC} ${FLAGS} src/nyberg_rueppel.c -o ${PROG} ${LIB}
+	${CC} ${FLAGS} src/mod_math.c src/nyberg_rueppel.c -o ${PROG} ${LIB}
 fiat_shamir:
 	${CC} ${FLAGS} src/mod_math.c src/fiat_shamir.c -o ${PROG} ${LIB}
 clean:

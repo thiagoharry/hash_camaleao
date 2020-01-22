@@ -32,16 +32,35 @@ typedef struct{
 
 typedef RND DIGEST;
 
+bool has_first_pre_image = true;
+
+void free_keys(PK *pk, SK *sk){
+  mpz_clear(sk -> d0);
+  mpz_clear(sk -> d1);
+  mpz_clear(sk -> n);
+  mpz_clear(pk -> e0);
+  mpz_clear(pk -> e1);
+  mpz_clear(pk -> n);
+}
+
 void init_digest(DIGEST *digest){
   mpz_init(digest -> rnd);
+}
+
+void init_rnd(RND *r){
+  mpz_init(r -> rnd);
 }
 
 void free_digest(DIGEST *digest){
   mpz_clear(digest -> rnd);
 }
 
+void free_rnd(RND *r){
+  mpz_clear(r -> rnd);
+}
+
 void print_keys(PK *pk, SK *sk){
-  char *string1, *string2, string3;
+  char *string1, *string2, *string3;
   string1 = mpz_get_str(NULL, 10, sk -> d0);
   string2 = mpz_get_str(NULL, 10, sk -> d1);
   string3 = mpz_get_str(NULL, 10, sk -> n);
@@ -56,18 +75,36 @@ void print_keys(PK *pk, SK *sk){
   free(string3);
 }
 
-void print_rnd(RND *r){
-  char *string1;
-  string1 = mpz_get_str(NULL, 10, r -> rnd);
-  printf("[%s]\n", string1);
-  free(string1);
+void print_msg(MSG *m){
+  int i;
+  for(i = 0; i < m -> size; i ++){
+    int a;
+    a = ((m -> msg[i] / 128)?(8):(0));
+    a += (((m -> msg[i] / 64) % 2)?(4):(0));
+    a += (((m -> msg[i] / 32) % 2)?(2):(0));
+    a += (((m -> msg[i] / 16) % 2)?(1):(0));
+    if(a < 10)
+      printf("%d", a);
+    else
+      printf("%c", 'a' + (a - 10));
+    a = (((m -> msg[i] / 8) % 2)?(8):(0));
+    a += (((m -> msg[i] / 4) % 2)?(4):(0));
+    a += (((m -> msg[i] / 2) % 2)?(2):(0));
+    a += ((m -> msg[i] % 2)?(1):(0));
+    if(a < 10)
+      printf("%d", a);
+    else
+      printf("%c", 'a' + (a - 10));
+  }
 }
 
-void print_hash(RND *r, DIGEST *digest){
+void print_hash(MSG *msg, RND *r, DIGEST *digest){
   char *string1, *string2;
   string1 = mpz_get_str(NULL, 10, r -> rnd);
   string2 = mpz_get_str(NULL, 10, digest -> rnd);
-  printf("Hash(..., %s) = \n %s\n", string1, string2);
+  printf("Hash(");
+  print_msg(msg);
+  printf(",\n     %s) = \n %s\n", string1, string2);
   free(string1);
   free(string2);
 }
@@ -78,11 +115,11 @@ void random_rnd(PK *pk, RND *rnd){
 
 #define random_digest(a, b) random_rnd(a, b)
 
-void random_msg(MSG *msg, int size){
+void random_msg(PK *pk, MSG *msg, int size){
   int i;
   msg -> msg = (char *) malloc(size);
   for(i = 0; i < size; i ++)
-    arc4random_uniform(256);
+    msg -> msg[i] = arc4random_uniform(256);
   msg -> size = size;
 }
 
@@ -111,7 +148,6 @@ void keygen(unsigned n, PK *pk, SK *sk){
   // Gerando p, q e n=pq
   unsigned long size_p, size_q;
   mpz_t p, q, carm;
-  int i;
   mpz_init(p);
   mpz_init(q);
   mpz_init(carm);
@@ -160,8 +196,11 @@ void hash(PK *pk, MSG *msg, RND *rnd, DIGEST *digest){
 	c = c << 1;
     }
   }
-  mpz_init_set(digest -> rnd, r.rnd);
+  mpz_set(digest -> rnd, r.rnd);
   mpz_clear(r.rnd);
+}
+
+void collision(SK *sk, MSG *msg, RND *r, MSG *msg2, RND *r2){
 }
 
 void firstpreimage(SK *sk, MSG *msg, DIGEST *digest, RND *result){

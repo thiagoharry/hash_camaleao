@@ -158,8 +158,6 @@ void mod_random_number(mpz_t *result, mpz_t mod){
   int i;
   size = mpz_sizeinbase(mod, 2);
   num = (char *) malloc(size + 1);
-  // Generate random value uniformly distributed between 0 and ppk
-  // Whats the size of ppk in base 32767? (int minimal size)
   do{
     for(i = 0; i < size; i ++){
       if(arc4random_uniform(2))
