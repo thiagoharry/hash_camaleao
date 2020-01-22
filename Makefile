@@ -3,7 +3,14 @@ PROG=chamhash
 FLAGS=-O2 -g -Wall
 LIB=-lgmp -lbsd -lm
 
-all:
+help:
+	@echo "make doc: Build documentation"
+	@echo "make claw_free_square: Build c. hash based in permutation of quadratic residues"
+	@echo "make claw_free_rsa: Build chameleon hash based in RSA permutation"
+	@echo "make krawczyk_log: Build Krawxzyk's chameleon hash based in discrete log"
+	@echo "make nyberg_rueppel: Build  chameleon hash based in Nyberg-Rueppel"
+	@echo "make fiat_shamir: Build chameleon hash based in Fiat-Shamir sigma protocol"
+doc:
 	pdflatex report.tex
 	bibtex report
 	pdflatex report.tex
