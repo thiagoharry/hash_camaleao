@@ -45,13 +45,14 @@ descritas nas próximas seções.
 \section{Hashes Camaleão Simples}
 
 Um Esquema de Hash Camaleão Simples é uma tupla formada por três
-algoritmos:
+algoritmos definidos sobre os conjuntos $M$, $R$ e $C$:
 
 \begin{itemize}
 \item\textbf{KeyGen}: $1^k \rightarrow (\mathcal{SK}, \mathcal{PK})$\\
   Dado um parâmetro de segurança, ela retorna um par de chaves pública
   e privada a ser usada com uma hash camaleão.
-\item\textbf{Hash}: $(\mathcal{PK}, m, r) \rightarrow C$. 
+\item\textbf{Hash}: $(\mathcal{PK}, m, r) \rightarrow c$, onde $m \in
+  M$, $r \in R$ e $c \in C$.
 \item\textbf{Collision}: $(\mathcal{SK}, m, r, m') \rightarrow r'$
   tal que $Hash(\mathcal{PK}, m, r) = Hash(\mathcal{PK}, m', r')$ e
   $(m, r) \neq (m', r')$.
@@ -61,14 +62,9 @@ Além disso, as seguintes propriedades devem estar presentes no
 esquema:
 
 \begin{itemize}
-\item\textbf{Resistência a Colisão: }Não existe algoritmo eficiente
-  que dado apenas $\mathcal{PK}$, $m$ e $r$, consegue encontrar um
-  segundo par $m'$ e $r'$ tal que $Hash(\mathcal{PK}, m, r) =
-  Hash(\mathcal{PK}, m', r')$.
-
-  A propriedade pode ser definida formalmente para um esquema de hash
-  camaleão $CH$ se para qualquer algoritmo eficiente $\mathcal{A}$, a
-  probabilidade do experimento abaixo retornar 1 é negligível:
+\item\textbf{Resistência a Colisão: }Se para todo adversário eficiente
+  $\mathcal{A}$ a probabilidade do experimento abaixo retornar 1 é
+  negligível:
 
   \noindent
   \begin{algorithm}[H]
@@ -83,20 +79,9 @@ esquema:
           r')$} {\textbf{retorne} 1\;} {\textbf{retorne} 0\;} } }\textbf{Fim}
   \end{algorithm}
   
-\item\textbf{Segurança Semântica: }O valor de um hash não deve
-  revelar nenhuma informação sobre a mensagem que o gerou. Nos
-  esquemas a serem apresentados, demonstrar esta propriedade é
-  equivalente a demonstrar que qualquer mensagem $m$ pode gerar
-  qualquer valor de hash possível a depender somente do valor de
-  $r$. Desta forma, conhecer o valor do hash não interfere na
-  probabilidade de acertarmos qual mensagem foi escolhida para gerar
-  um hash.
-
-  Formalmente, a propriedade pode ser definida para um esquema de hash
-  camaleão $CH$ se para todo algoritmo eficiente $\mathcal{A}$, dada a
-  linguagem $L$ formada por todas as mensagens distintas que podem ser
-  passadas para a função Hash, a probabilidade do experimento abaixo
-  retornar 1 é negligivelmente próxima de $1/|L|$:
+\item\textbf{Segurança Semântica: }Se para todo adversário eficiente
+  $\mathcal{A}$, a probabilidade do experimento abaixo retornar 1 é
+  negligível:
 
   \noindent
   \begin{algorithm}[H]
@@ -105,30 +90,50 @@ esquema:
     \SetKwFunction{FMain}{SemanticSecurity$_\mathcal{A}^{CH}$}
     \SetKwProg{Fn}{Experimento}{:}{} \Fn{\FMain{$n$}}{
       $(\mathcal{PK},\mathcal{SK}) \leftarrow$\textbf{KeyGen}($1^n$)\;
-      $m\leftarrow^{\$}L$\;
-      $C\leftarrow Hash(\mathcal{PK}, m, r)$\;
-      $m'\leftarrow\mathcal{A}(\mathcal{PK}, C)$\;
-      {\eIf{$m = m'$} {\textbf{retorne} 1\;} {\textbf{retorne} 0\;} }
+      $(m_0, m_1) \leftarrow \mathcal{A}(\mathcal{PK})$\;
+      $b \leftarrow^\$ \{0, 1\}$\;
+      $r \leftarrow^\$ R$\;
+      $c \leftarrow Hash(\mathcal{PK}, m_b, r)$\;
+      $b' \leftarrow \mathcal{A}(c, r)$\;
+      {\eIf{$b' = b$} {\textbf{retorne} 1\;} {\textbf{retorne} 0\;} } 
     }
   \end{algorithm}
+\end{itemize}
 
-\item\textbf{Ocultação de Mensagem ou Resistência à Falsificação} As
-  duas propriedades acima são mutualmente excludentes, mas um Esquema
-  de Hash Camaleão deve possuir uma delas para ser válida.
+Opcionalmente um esquema pode apresentar também as seguintes
+propriedades:
 
-  A \textbf{Ocultação de Mensagem} implica na existência de um
-  algoritmo determinístico \textbf{IForge}: $(\mathcal{PK}, m, r, m',
-  r') \rightarrow (m'', r'')$ tal que se $Hash(\mathcal{PK}, m, r) =
-  Hash(\mathcal{PK}, m', r') = C$, então $Hash(\mathcal{PK}, m'',
-  r'')=C$.
+\begin{itemize}
+\item\textbf{Livre de Exposição de Chave:} Se para todo adversário
+  eficiente $\mathcal{A}$, capaz de realizar uma quantidade polinomial
+  de consultas à um oráculo que retorna colisões aleatórias no esquema
+  de hash camaleão, a probabilidade do experimento abaixo retornar 1 é
+  negligível.
 
-  A \textbf{Resistência à Falsificação} afirma que para todo algoritmo
-  probabilístico $\mathcal{A}$ que recebe uma chave pública
-  $\mathcal{PK}$ e pode consultar um número polinomial de vezes um
-  oráculo que retorna diferentes resultados de
-  $Collision(\mathcal{SK}, m, r, m')$ para quaisquer valores de $m$,
-  $r$ e $m'$, a probabilidade do experimento abaixo retornar 1 é
-  negligível:
+\noindent
+  \begin{algorithm}[H]
+    \SetAlgoLined
+    \SetKwInOut{Input}{Entrada}\SetKwInOut{Output}{Saída}
+    \SetKwFunction{FMain}{KeyExposition$_\mathcal{A}^{CH}$}
+    \SetKwProg{Fn}{Experimento}{:}{} \Fn{\FMain{$n$}}{
+      $(\mathcal{PK}, \mathcal{SK}) \leftarrow$ \textbf{KeyGen}($1^n$)\;
+      $\mathcal{SK'} \leftarrow \mathcal{A}^{Collision(\mathcal{SK},
+        ., ., .)}(\mathcal{PK})$\;
+      {\eIf{$\mathcal{SK} =
+          \mathcal{SK'}$} {\textbf{retorne} 1\;} {\textbf{retorne}
+          0\;} } }\textbf{Fim}
+  \end{algorithm}
+
+  Se um esquema de hash camaleão é livre de exposição de chaves, a
+  mesma chave pode ser reutilizada mesmo quando colisões obtidas com a
+  sua chave privada tornam-se públicas.
+  
+\item A \textbf{Resistência à Falsificação} afirma que para todo algoritmo
+  adversário $\mathcal{A}$ que recebe uma chave pública $\mathcal{PK}$
+  e pode consultar um número polinomial de vezes um oráculo que
+  retorna diferentes resultados de $Collision(\mathcal{SK}, m, r, m')$
+  para quaisquer valores de $m$, $r$ e $m'$, a probabilidade do
+  experimento abaixo retornar 1 é negligível:
 
   \noindent
   \begin{algorithm}[H]
@@ -144,47 +149,24 @@ esquema:
           oráculo} {\textbf{retorne} 1\;} {\textbf{retorne} 0\;} }
     }\textbf{Fim}
   \end{algorithm}
-\end{itemize}
 
-Opcionalmente um esquema pode apresentar também as seguintes
-propriedades:
-
-\begin{itemize}
-\item\textbf{Livre de Exposição de Chave:} Para todo algoritmo
-  probabilístico $\mathcal{A}$ que recebe uma chave pública
-  $\mathcal{PK}$ e pode consultar um número polinomial de vezes um
-  oráculo que retorna o resultado de $Collision(\mathcal{SK}, m, r,
-  m')$ para diferentes valores de $m$, $r$ e $m'$, a probabilidade o
-  experimento abaixo retornar 1 é negligível:
-
-\noindent
-  \begin{algorithm}[H]
-    \SetAlgoLined
-    \SetKwInOut{Input}{Entrada}\SetKwInOut{Output}{Saída}
-    \SetKwFunction{FMain}{ForgeRes$_\mathcal{A}^{CH}$}
-    \SetKwProg{Fn}{Experimento}{:}{} \Fn{\FMain{$n$}}{ $(\mathcal{PK},
-      \mathcal{SK}) \leftarrow$ \textbf{KeyGen}($1^n$)\;
-      $\mathcal{SK'} \leftarrow \mathcal{A}^{Collision(\mathcal{SK},
-        ., ., .)}(\mathcal{PK})$\; {\eIf{$\mathcal{SK} =
-          \mathcal{SK'}$} {\textbf{retorne} 1\;} {\textbf{retorne}
-          0\;} } }\textbf{Fim}
-  \end{algorithm}
-
-  Se um esquema de hash camaleão não é livre de exposição de chaves,
-  então ele não será resistente à forjas.
-
-  Uma hash camaleão que não é livre de exposição de chaves precisará
-  ser usada com as suas chaves sendo descartáveis e tendo que ser
-  substituídas após o uso, ou devem ser adaptadas para outros tipos de
-  esquemas mais sofisticados de hashes camaleão.
-\item\textbf{Cálculo de Primeira Pré-Imagem:} Existe um algoritmo
-  determinístico eficiente $FirstPreImage$ que recebe uma chave
-  privada $\mathcal{SK}$ e um valor de hash $C$ e retorna um par $(m,
-  r)$ tal que $Hash(\mathcal{PK}, m, r) = C$ para a chave pública
+  Sem esta propriedade, uma vez que uma colisão é descoberta para uma
+  mensagem $m$, não é possível garantir a segurança de qualquer outro
+  uso da hash camaleão para calcular novamente o hash desta mesma
+  mensagem. Contudo, a função ainda pode ser utilizada com a mesma
+  chave para calcular o hash de outras mensagens. Na maioria dos casos
+  esta propriedade é desejável, mas existem alguns usos de hash
+  camaleão, como no caso das assinaturas camaleão como propostas por
+  Krawczyk em \cite{krawczyk} nos quais a ausência desta propriedade é
+  um requisito.
+  
+\item\textbf{Cálculo de Pré-Imagem:} Existe um algoritmo
+  determinístico eficiente $PreImage$ que recebe uma chave privada
+  $\mathcal{SK}$ e um valor de hash $c \in C$ e retorna um par $(m,
+  r)$ tal que $Hash(\mathcal{PK}, m, r) = c$ para a chave pública
   correspondente à chave privada recebida como argumento.
 \end{itemize}
   
-
 É importante notar que a composição de uma hash convencional e uma
 hash camaleão é uma hash camaleão. Grande parte das definições de hash
 camaleão assume que a mensagem de entrada possui um tamanho fixo ou
@@ -192,8 +174,17 @@ está em um formato pré-estabelecido. Em tais casos, assumimos que a
 mensagem já passou previamente por uma função hash que a deixou no
 formato adequado.
 
-\subsection{Construção Baseada em Permutações de Resíduos Quadráticos (Krawczyk)
-  (2000) \cite{krawczyk}}
+Uma função de hash camaleão $Hash(\mathcal{PK}, m, r)$ pode ser vista
+como um caso particular de uma função hash com chave
+$H_{\mathcal{PK}}(m||r)$ e deste fato podemos derivar algumas
+propriedades. Se $|M||R| \geq s |T|$ para algum $s$ super-polinomial
+em relação ao parâmetro de segurança $n$, então se a função hash é
+resistente à colisão, então ela será uma função de mão única. Em tais
+casos, a existência de uma função $PreImage$ também implica a
+existência de uma função $Collision$ dada a chave privada.
+
+\subsection{Construção Baseada em Permutações de Resíduos Qua\-drá\-ti\-cos
+  (Krawczyk) (2000) \cite{krawczyk}}
 
 \subsubsection{Funções}
 
@@ -220,7 +211,7 @@ considerado como igual a $r$. Em cada bit da iteração atualizamos como
 novo valor da hash o valor anterior passado para $f_0$ se o bit for 0
 ou o valor anterior passado para $f_1$ se o bit for 1.
 
-\textbf{FirstPreImage:} Para obter um valor válido de $r$ para que a
+\textbf{PreImage:} Para obter um valor válido de $r$ para que a
 mensagem $m$ tenha o hash $C$, comece com o valor inicial de $C$ e
 percorra a representação binária de $m$ de trás pra frente. Toda vez
 que encontrar um 0, aplique sobre o valor atual de $r$ a função
@@ -371,7 +362,7 @@ seguintes tempos de execução foram obtidos:
 \end{tabular}
 \end{center}
 
-\subsection{Construção Baseada em Logaritmo Discreto (Krawczyk)(2000)
+\subsection{Construção Baseada em Logaritmo Discreto (Krawczyk) (2000)
   \cite{krawczyk}}
 
 \subsubsection{Funções}
@@ -392,10 +383,10 @@ $$
 Hash(\mathcal{PK}=y, m, r) = g^my^r \mod p
 $$
 
-\textbf{FirstPreImage:} Não. Seria necessário resolver o problema do
+\textbf{PreImage:} Não. Seria necessário resolver o problema do
 logaritmo discreto para implementar esta função.
 
-\textbf{UForge:} A chave privada é o logaritmo discreto de $y$. Se
+\textbf{Collision:} A chave privada é o logaritmo discreto de $y$. Se
 temos um $m$ e um $r$ que possui um hash conhecido e queremos que um
 $m'$ qualquer gere o mesmo valor hash, o valor $r'$ necessário é
 retornado por:
@@ -852,8 +843,6 @@ número da subseção em que ele foi apresentado.
     Esquema&2.1&2.2&2.3&2.4&2.5&2.6\\
     \hline
     Livre de Exposição de Chave&X&\ok&X&\ok&X&\ok\\
-    \hline
-    Ocultação de Mensagem&\ok&X&\ok&X&\ok&X\\
     \hline
     Resistência à Falsificação&X&\ok&X&\ok&X&\ok\\
     \hline
