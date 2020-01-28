@@ -62,7 +62,7 @@ Além disso, as seguintes propriedades devem estar presentes no
 esquema:
 
 \begin{itemize}
-\item\textbf{Resistência a Colisão: }Se para todo adversário eficiente
+\item\textbf{Resistência a Colisão: }Para todo adversário eficiente
   $\mathcal{A}$ a probabilidade do experimento abaixo retornar 1 é
   negligível:
 
@@ -72,12 +72,36 @@ esquema:
     \SetKwInOut{Input}{Entrada}\SetKwInOut{Output}{Saída}
     \SetKwFunction{FMain}{CollRes$_\mathcal{A}^{CH}$}
     \SetKwProg{Fn}{Experimento}{:}{} \Fn{\FMain{$n$}}{
-      $(\mathcal{PK}, \mathcal{SK}) \leftarrow
+      $(\mathcal{PK}, \mathcal{SK}) \leftarrow^\$
       $\textbf{KeyGen}($1^n$)\; $(m, r, m', r') \leftarrow
       \mathcal{A}(\mathcal{PK})$\; {\eIf{$Hash(\mathcal{PK}, m, r) =
           Hash(\mathcal{PK}, m', r')$ \textbf{e} $(m, r) \neq (m',
           r')$} {\textbf{retorne} 1\;} {\textbf{retorne} 0\;} } }\textbf{Fim}
   \end{algorithm}
+
+\item\textbf{Resistência à Pré-Imagem: }Para todo adversário eficiente
+  $\mathcal{A}$, a probabilidade do experimento abaixo retornar 1 é
+  negligível:
+
+  \noindent
+  \begin{algorithm}[H]
+    \SetAlgoLined
+    \SetKwInOut{Input}{Entrada}\SetKwInOut{Output}{Saída}
+    \SetKwFunction{FMain}{PreImg$_\mathcal{A}^{CH}$}
+    \SetKwProg{Fn}{Experimento}{:}{} \Fn{\FMain{$n$}}{
+      $(\mathcal{PK}, \mathcal{SK}) \leftarrow^\$$\textbf{KeyGen}($1^n$)\;
+      $m \leftarrow^\$ M$\;
+      $r \leftarrow^\$ R$\;
+      $c \leftarrow Hash(\mathcal{PK}, m, r)$\;
+      $m' \leftarrow \mathcal{A}(\mathcal{PK}, c, r)$\;
+      {\eIf{$m' = m$}
+        {\textbf{retorne} 1\;}
+        {\textbf{retorne} 0\;}
+      }
+    }
+    \textbf{Fim}
+  \end{algorithm}
+
   
 \item\textbf{Segurança Semântica: }Se para todo adversário eficiente
   $\mathcal{A}$, a probabilidade do experimento abaixo retornar 1 é
@@ -159,6 +183,15 @@ propriedades:
   camaleão, como no caso das assinaturas camaleão como propostas por
   Krawczyk em \cite{krawczyk} nos quais a ausência desta propriedade é
   um requisito.
+
+  É importante notar que a Resistência à Falsificação implica que um
+  esquema é Livre de Exposição de Chaves. Afinal, um adversário capaz
+  de computar eficientemente com probabilidade não-negligível a chave
+  privada tendo acesso à um número polinomial de colisões pode ser
+  usado para construir um adversário com uma vantagem não-negligível
+  em encontrar colisões. Também será válida a contrapositiva de que se
+  um esquema não é livre de exposição de chave, ele não será
+  resistente à falsificação.
   
 \item\textbf{Cálculo de Pré-Imagem:} Existe um algoritmo
   determinístico eficiente $PreImage$ que recebe uma chave privada
@@ -221,20 +254,12 @@ final é o $r$ desejado.
 \textbf{Collision:} Basta escolher uma mensagem $m'$ qualquer que seja
 diferente de $m$ e calcular usando a equação:
 
-$Collision(\mathcal{SK}, m, r) = (m', FirstPreImage(\mathcal{SK}, m',
+$Collision(\mathcal{SK}, m, r) = (m', PreImage(\mathcal{SK}, m',
 Hash(\mathcal{PK}, m, r)))$
 
-\textbf{IForge:} Essa função existe somente porque a construção de
-Krawczyk não é livre de exposição da chave (ver abaixo). Isso
-significa que se temos acesso a uma colisão, podemos extrair a chave
-privada $\mathcal{SK}$. Sendo assim, dado um $m$ e $m'$, podemos
-escolher um terceiro $m''$ diferente e obter um $r''$ correspondente
-usando a mesma equação acima.
-
-Isso é uma característica específica da construção de Krawczyk. Se
-outras funções de permutações fôssem usadas, de modo que a
-implementação fôsse livre de exposição de chave, não necessariamente
-teríamos acesso à esta função.
+Isso funciona pelo fato de que toda mensagem neste esquema é capaz de
+produzir qualquer $c \in C$, bastando que se mude o valor de $r$
+utilizado no hash.
 
 \subsubsection{A Exposição de Chave}
 
@@ -343,11 +368,10 @@ RSA como função de permutação. Na literatura não foi encontrada uma
 proposta de uso desta hash camaleão, provavelmente devido ao seu
 desempenho pior comparada à anterior. 
 
-Esta construção está sendo mencionada aqui principalmente por ser um
-caso no qual apearentemente o esquema é livre de exposição de chave e
-apresenta resistência à forja mesmo possuindo o cálculo de primeira
-pré-imagem. Propriedades que são únicas em meio à outros esquemas de
-hash camaleão do tipo.
+Contudo, esta construção está sencdo mencionada aqui devido a possuir
+algumas características únicas, como ser até onde se sabe livre de
+exposição de chaves, resistente à falsificação e possuir definida uma
+função $PreImage$ para calcular a pré-imagem com a chave privada.
 
 \subsubsection{Medida de Desempenho}
 
@@ -395,12 +419,9 @@ $$
 Collision(\mathcal{SK}=x, m, r, m') = (m+xr-m')(x)^{-1}
 $$
 
-\textbf{IForge:} Este esquema não é livre de exposição de chaves. A
-chave secreta $x$ pode ser obtida por qualquer um que tenha acesso à
-uma colisão $(m, r)$ e $(m', r')$ por meio da fórmula $m+xr =
-m'+xr'$. Sendo assim, tendo acesso a uma colisão é trivial extrair a
-chave privada e assim gerar novas colisões mesmo sem receber a chave
-privada explicitamente.
+Este esquema não é livre de exposição de chaves. A chave secreta $x$
+pode ser obtida por qualquer um que tenha acesso à uma colisão $(m,
+r)$ e $(m', r')$ por meio da fórmula $m+xr = m'+xr'$.
 
 %\subsection{Propriedades}
 
@@ -518,7 +539,8 @@ Exatamente o resultado esperado.
 \end{tabular}
 \end{center}
 
-\subsection{Construção Baseada em Assinatura de Nyberg-Rueppel (Ateniese e Medeiros) (2005)\cite{ateniese}}
+\subsection{Construção Baseada em Assinatura de Nyberg-Rueppel
+  (Ateniese e Medeiros) (2005)\cite{ateniese}}
 
 \subsubsection{Funções}
 
@@ -538,7 +560,7 @@ $$
 Assumindo $\mathcal{H}(m||r_1)$ como o cálculo de um hash
 criptográfico convencional da concatenação de $m$ e $r_1$.
 
-\textbf{FirstPreImage:} Seja $C$ o valor da hash desejada para uma
+\textbf{PreImage:} Seja $C$ o valor da hash desejada para uma
 mensagem $m$, gere $r_1'$ pela fórmula abaixo para qualquer $k$
 aleatório:
 
@@ -552,10 +574,10 @@ $$
 r_2' = \left[k-\mathcal{H}(m'||r_1')x\right] \mod q
 $$
 
-\textbf{Collision:} Como existe uma função $FirstPreImage$, podemos
+\textbf{Collision:} Como existe uma função $PreImage$, podemos
 obter uma colisão calculando:
 
-$$ Collision(\mathcal{Sk}, m, r, m') = FirstPreImage(\mathcal{SK},
+$$ Collision(\mathcal{Sk}, m, r, m') = PreImage(\mathcal{SK},
 Hash(\mathcal{PK}, m, r), m')
 $$
 
@@ -574,8 +596,6 @@ mensagem $m'$, obtemos:
   &= Hash(m, (r_1, r_2))
 \end{split}
 \end{equation}
-
-\textbf{IForge: }Não definida.
 
 %\subsection{Propriedades}
 %
@@ -599,7 +619,7 @@ $$ Hash(\mathcal{PK}, m, r) =
 \left(r_1y^{\mathcal{H}(m||r_1)}g^{r_2} \right)\mod p
 $$
 
-Em tal caso, para obter a função $FirstPreImage$, o cálculo de $r_2'$
+Em tal caso, para obter a função $PreImage$, o cálculo de $r_2'$
 não se modifica, mas $r_1'$ é obtido com a nova fórmula:
 
 $$
@@ -645,10 +665,10 @@ sendo $r \leq n/2$, a hash é obtida por:
 $$ Hash(\mathcal{PK}, m, r) = r^2\prod_{m_i=1}v_i \mod n
 $$
 
-\textbf{FirstPreImage: } Esta função é definida como:
+\textbf{PreImage: } Esta função é definida como:
 
 $$
-FirstPreImage(\mathcal{SK}, C, m') = \sqrt{C}\prod_{m'_i=1}s_i \mod n
+PreImage(\mathcal{SK}, C, m') = \sqrt{C}\prod_{m'_i=1}s_i \mod n
 $$
 
 A raíz quadrada modular só pode ser calculada por quem conheça os
@@ -680,6 +700,45 @@ colisões derivadas é negligível.
 \end{tabular}
 \end{center}
 
+\subsection{Construção Baseada no Protocolo Sigma de Okamoto
+  (Mihir Bellare e Todor Ristov) (2008)\cite{sigma}}
+
+Esta construção foi obtida assim como a anterior à partir de
+protocolos sigma já existentes após o autor perceber a relação
+existente entre protocolos sigma e hashes camaleão. Mas ao contrário
+do método anterior, esta construção não se destaca por ter vantagem em
+desempenho comparada à outras construções e nem tem a propriedade
+desejável de ser livre de exposição de chave.
+
+\subsubsection{Funções}
+
+\textbf{KeyGen: } Obtenha um grupo onde calcular o logaritmo discreto
+é um problema difícil. Escolha como chave pública $(g_1, g_2, x)$ onde
+$g_1$ e $g_2$ são geradores e escolha como chave privada $(s_1, s_2)$
+tais que $g_1^{s_1}g_2^{s_2} = x$.
+
+\textbf{Hash: } É definida pela seguinte função:
+
+$$
+Hash(\mathcal{PK}=(g_1, g_2, x), m, r=(r_1, r_2)) = x^mg_1^{z_1}g_2^{z_2}
+$$
+
+\textbf{Collision: } Pela propriedade da exponenciação, dados $m$,
+$m'$ e $r=(r_1, r_2)$ conhecidos, podemos obter $r'=(r_1', r_2')$ tal
+que $Hash(\mathcal{PK}, m, r) = Hash(\mathcal{PK}, m', r')$ por meio
+da equação:
+
+$$
+r_1' = (m-m')s_1+r_1
+$$
+
+$$
+r_2' = (m-m')s_2+r_2
+$$
+
+A mesma equação também nos revela que o esquema não é livre da
+exposição de chaves, pois diante de uma colisão os valores $s_1$,
+$s_2$ podem ser trivialmente isolados.
 
 \subsection{Construção Baseada em Reticulados (David Cash)
   (2010)\cite{reticulado}}
@@ -838,15 +897,15 @@ esquemas vistos nesta seção. Cada esquema está identificado pelo
 número da subseção em que ele foi apresentado.
 
 \begin{center}
-  \begin{tabular}{|c|c|c|c|c|c|c|}
+  \begin{tabular}{|c|c|c|c|c|c|c|c|}
     \hline
-    Esquema&2.1&2.2&2.3&2.4&2.5&2.6\\
+    Esquema&2.1&2.2&2.3&2.4&2.5&2.6&2.7\\
     \hline
-    Livre de Exposição de Chave&X&\ok&X&\ok&X&\ok\\
+    Livre de Exposição de Chave&X&\ok&X&\ok&X&X&\ok\\
     \hline
-    Resistência à Falsificação&X&\ok&X&\ok&X&\ok\\
+    Resistência à Falsificação&X&\ok&X&\ok&X&X&\ok\\
     \hline
-    Primeira Pré-Imagem&\ok&\ok&X&\ok&\ok&X\\
+    Primeira Pré-Imagem&\ok&\ok&X&\ok&\ok&X&X\\
     \hline
   \end{tabular}
 \end{center}
@@ -887,7 +946,7 @@ $$
 Hash(\mathcal{L}, m, r) = C(\mathcal{L})^{\mathcal{H}(m)}r^e \mod n
 $$
 
-\textbf{FirstPreImage:} Não está presente neste esquema.
+\textbf{PreImage:} Não está presente neste esquema.
 
 \textbf{UForge:} Para obtermos um novo valor $r'$ para um dado $m'$
 que tenha mesmo hash que $m$ e $r$, podemos comaçar pela equação:
@@ -1021,7 +1080,7 @@ $$
 Hash(\mathcal{L}, m, r) = e(r, g)e(C(m)^{\mathcal{H}(\mathcal{L})}, g^s)
 $$
 
-\textbf{FirstPreImage:} Não está presente neste esquema.
+\textbf{PreImage:} Não está presente neste esquema.
 
 \textbf{UForge:} Para obtermos um novo valor $r'$ para um dado $m'$
 que tenha mesmo hash que $m$ e $r$ e quando conhecemos a chave privada
@@ -1080,7 +1139,7 @@ $$
 Hash(\mathcal{PK}=g^s, \mathcal{L}, m, r) = e(g, g^{\mathcal{H}(m)})e(g^{\mathcal{H}(\mathcal{L})}g^s, r)^{\mathcal{H}(m)}
 $$
 
-\textbf{FirstPreImage:} Não. Assim como no caso anterior, seria
+\textbf{PreImage:} Não. Assim como no caso anterior, seria
 necessário resolver o problema do logaritmo discreto para implementar
 esta função.
 
@@ -1168,7 +1227,7 @@ válido que deve ser aceito. Para isso, basta verificarmos se $g$, $y$,
 $g^a$ e $y^a$ formam uma Tupla Diffie-Hellman ($(\lg y)(\lg g^a) =(\lg
 y^a)$).
 
-\textbf{FirstPreImage:} Não definida.
+\textbf{PreImage:} Não definida.
 
 \textbf{UForge:} Sendo o valor de $r$ uma tupla, ela pode ser obtida
 com:
@@ -1240,7 +1299,7 @@ O valor pode ser conferido rapidamente observando que $(g^r,
 yg^{\mathcal{H}(\mathcal{L})}, Hash(\mathcal{L}, m,
 r)/g^{\mathcal{H}(m)})$ é uma Tripla Diffie-Hellman.
 
-\textbf{FirstPreImage:} Não definida.
+\textbf{PreImage:} Não definida.
 
 \textbf{UForge:} A pode ser obtida baseando-se na seguinte equação:
 
@@ -1327,14 +1386,14 @@ $$
 Hash(\mathcal{L}, m, (r_1, r_2)) = (1 +mn)\mathcal{H}(\mathcal{L})^{r_1}r_2^n \pmod{n^2}
 $$
 
-\textbf{FirstPreImage:} Essa função torna-se possível graças à função
+\textbf{PreImage:} Essa função torna-se possível graças à função
 de permutação com trapdoor ($f$) associada aos criptossistemas de
 Paillier. Primeiro escolhemos a função $f$ específica para
 $h=\mathcal{H}(\mathcal{L})$. Com ajuda dela, obtemos a primeira
 pré-imagem da seguinte maneira:
 
 $$
-FirstPreImage(\mathcal{SK}, m', C) = f^{-1}(C(1-m'n)) = (r_1', r_2')
+PreImage(\mathcal{SK}, m', C) = f^{-1}(C(1-m'n)) = (r_1', r_2')
 $$
 
 Isso funciona, pois geramos valores $r_1'$ e $r_2'$ tais que:
@@ -1360,7 +1419,7 @@ hash camaleão, obtemos:
 
 \textbf{UForge:} Como temos uma função qu calcula a primeira
 pré-imagem, a função $UForge$, que calcuma uma segunda pré-imagem é
-trivialmente definida bastando usar a função $FirstPreImage$ e passar
+trivialmente definida bastando usar a função $PreImage$ e passar
 para ela o valor de $Hash(\mathcal{L}, m, (r_1, r_2))$.
 
 \textbf{IForge: }
@@ -1392,7 +1451,7 @@ Hash(\mathcal{PK}, \mathcal{L}, m, (r_1, r_2)) =
 g^m(g^{r_1}y^{\mathcal{H}(\mathcal{L})})^{r_2}
 $$
 
-\textbf{FirstPreImage:} Dado o hash camaleão $C$ e uma mensagem $m$,
+\textbf{PreImage:} Dado o hash camaleão $C$ e uma mensagem $m$,
 podemos obter valores $(r_1, r_2)$
 
 TODO
