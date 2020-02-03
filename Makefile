@@ -25,5 +25,7 @@ nyberg_rueppel:
 	${CC} ${FLAGS} src/mod_math.c src/nyberg_rueppel.c -o ${PROG} ${LIB}
 fiat_shamir:
 	${CC} ${FLAGS} src/mod_math.c src/fiat_shamir.c -o ${PROG} ${LIB}
+dsa:
+	${CC} ${FLAGS} src/mod_math.c src/dsa.c -o ${PROG} ${LIB}
 clean:
 	rm -rf *~ *.bbl *.aux *.blg *.dvi *.log 

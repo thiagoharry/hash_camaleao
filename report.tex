@@ -39,27 +39,38 @@ propriedade de resistência à colisões. Dependendo da construção da
 hash camaleão, a propriedade de resistência à primeira pré-imagem
 também pdode se perder quando tem-se acesso à chave privada.
 
-Existem 3 tipos principais de esquemas de hash camaleão que serão
-descritas nas próximas seções.
 
 \section{Hashes Camaleão Simples}
 
-Um Esquema de Hash Camaleão Simples é uma tupla formada por três
-algoritmos definidos sobre os conjuntos $M$, $R$ e $C$:
+Um Esquema de Hash Camaleão Simples $CH$ é uma tupla formada por três
+algoritmos eficientes $KeyGen$, $Hash$ e $Collision$ tais que:
 
 \begin{itemize}
-\item\textbf{KeyGen}: $1^k \rightarrow (\mathcal{SK}, \mathcal{PK})$\\
-  Dado um parâmetro de segurança, ela retorna um par de chaves pública
-  e privada a ser usada com uma hash camaleão.
-\item\textbf{Hash}: $(\mathcal{PK}, m, r) \rightarrow c$, onde $m \in
-  M$, $r \in R$ e $c \in C$.
-\item\textbf{Collision}: $(\mathcal{SK}, m, r, m') \rightarrow r'$
-  tal que $Hash(\mathcal{PK}, m, r) = Hash(\mathcal{PK}, m', r')$ e
-  $(m, r) \neq (m', r')$.
+\item\textbf{KeyGen} é um algoritmo probabilístico invocado como
+  $(\mathcal{PK}, \mathcal{SK}) \leftarrow^\$ KeyGen()$ onde
+  $\mathcal{PK}$ é chamado de chave pública e $\mathcal{SK}$ é chamado
+  de chave privada.
+\item\textbf{Hash}: é um algoritmo determinístico invocado como $c
+  \leftarrow Hash(\mathcal{PK}, m, r)$ onde $\mathcal{PK}$ é uma chave
+  pública (como retornada por $KeyGen$), $m$ é uma mensagem, $r$ é um
+  parâmetro aleatório e $c$ é o resumo criptográfico.
+\item\textbf{Collision}: é um algoritmo probabilístico invocado como
+  $r' \leftarrow^\$ Collision(\mathcal{SK}, m, r, m')$ onde
+  $\mathcal{SK}$ é a chave privada (como retornada por $KeyGen$), $m$
+  e $m'$ são duas mensagens distintas, $r$ é um parâmetro aleatório e
+  $r'$ retornado é um valor tal que:
+
+  $$ Hash(\mathcal{PK}, m,r) = Hash(\mathcal{PK}, m', r')$$
+\item Assumimos que as mensagens pertencem à um espaço de mensagens
+  finito $M$, os parâmetros aleatórios pertencem à um espaço de
+  parâmetros aleatórios finito $R$ e todos os resumos criptográficos
+  possíveis pertencem ao espaço re resumo criptográfico finito $C$.
+  Dizemos que $CH=(KeyGen, Hash, Collision)$ é definida sobre $(M, R,
+  C)$.
 \end{itemize}
 
-Além disso, as seguintes propriedades devem estar presentes no
-esquema:
+Podemos avaliar o quão seguros são vários tipos de esquemas de hash
+camaleão observando as seguintes propriedades deles:
 
 \begin{itemize}
 \item\textbf{Resistência a Colisão: }Para todo adversário eficiente
@@ -78,7 +89,7 @@ esquema:
           Hash(\mathcal{PK}, m', r')$ \textbf{e} $(m, r) \neq (m',
           r')$} {\textbf{retorne} 1\;} {\textbf{retorne} 0\;} } }\textbf{Fim}
   \end{algorithm}
-
+  
 \item\textbf{Resistência à Pré-Imagem: }Para todo adversário eficiente
   $\mathcal{A}$, a probabilidade do experimento abaixo retornar 1 é
   negligível:
@@ -102,7 +113,6 @@ esquema:
     \textbf{Fim}
   \end{algorithm}
 
-  
 \item\textbf{Segurança Semântica: }Se para todo adversário eficiente
   $\mathcal{A}$, a probabilidade do experimento abaixo retornar 1 é
   negligível:
@@ -117,17 +127,17 @@ esquema:
       $(m_0, m_1) \leftarrow \mathcal{A}(\mathcal{PK})$\;
       $b \leftarrow^\$ \{0, 1\}$\;
       $r \leftarrow^\$ R$\;
-      $c \leftarrow Hash(\mathcal{PK}, m_b, r)$\;
+      $c \leftarrow Hash(\mathcal{PK}, m_b)$\;
       $b' \leftarrow \mathcal{A}(c, r)$\;
       {\eIf{$b' = b$} {\textbf{retorne} 1\;} {\textbf{retorne} 0\;} } 
     }
   \end{algorithm}
-\end{itemize}
 
-Opcionalmente um esquema pode apresentar também as seguintes
-propriedades:
-
-\begin{itemize}
+  A segurança semântica implica a resistência à pré-imagem. Se um
+  adversário pode calcular a pré-imagem com probabilidade
+  não-negligível, então ele pode ser usado para construir um
+  adversário que quebra a segurança semântica obtendo a pré-imagem do 
+  
 \item\textbf{Livre de Exposição de Chave:} Se para todo adversário
   eficiente $\mathcal{A}$, capaz de realizar uma quantidade polinomial
   de consultas à um oráculo que retorna colisões aleatórias no esquema
@@ -192,13 +202,10 @@ propriedades:
   em encontrar colisões. Também será válida a contrapositiva de que se
   um esquema não é livre de exposição de chave, ele não será
   resistente à falsificação.
+
   
-\item\textbf{Cálculo de Pré-Imagem:} Existe um algoritmo
-  determinístico eficiente $PreImage$ que recebe uma chave privada
-  $\mathcal{SK}$ e um valor de hash $c \in C$ e retorna um par $(m,
-  r)$ tal que $Hash(\mathcal{PK}, m, r) = c$ para a chave pública
-  correspondente à chave privada recebida como argumento.
 \end{itemize}
+
   
 É importante notar que a composição de uma hash convencional e uma
 hash camaleão é uma hash camaleão. Grande parte das definições de hash
@@ -910,6 +917,54 @@ número da subseção em que ele foi apresentado.
   \end{tabular}
 \end{center}
 
+
+\section{Hashes Camaleão com Trapdoor de Pré-Imagem}
+
+Estes hashes camaleão tem como principal diferença diante dos
+anteriores o fato de que a sua chave privada, ou \textit{trapdoor}
+permitir o cálculo de pré-imagens. Isso permite o seu uso em
+aplicações distintas, e traz a necessidade de definir de maneira
+diferente suas propriedades de segurança.
+
+Um Esquema de Hash Camaleão com Trapdoor de Pré-Imagem $CH_{PI}$ é uma
+tupla formada por três algoritmos eficientes $KeyGen$, $Hash$ e
+$Preimage$ tais que:
+
+\begin{itemize}
+\item\textbf{KeyGen} é um algoritmo probabilístico invocado como
+  $(\mathcal{PK}, \mathcal{SK}) \leftarrow^\$ KeyGen()$ onde
+  $\mathcal{PK}$ é chamado de chave pública e $\mathcal{SK}$ é chamado
+  de chave privada.
+\item\textbf{Hash}: é um algoritmo determinístico invocado como $c
+  \leftarrow Hash(\mathcal{PK}, m, r)$ onde $\mathcal{PK}$ é uma chave
+  pública (como retornada por $KeyGen$), $m$ é uma mensagem, $r$ é um
+  parâmetro aleatório e $c$ é o resumo criptográfico.
+\item\textbf{Preimage}: é um algoritmo probabilístico invocado como $r
+  \leftarrow^\$ Preimage(\mathcal{SK}, m, c)$ onde $\mathcal{SK}$ é a
+  chave privada (como retornada por $KeyGen$), $m$ é uma mensagem, $c$
+  é um resumo criptográfico de modo que a função retorna $r$ tal que:
+
+  $$ Hash(\mathcal{PK}, m,r) = c$$
+\item Assumimos que as mensagens pertencem à um espaço de mensagens
+  finito $M$, os parâmetros aleatórios pertencem à um espaço de
+  parâmetros aleatórios finito $R$ e todos os resumos criptográficos
+  possíveis pertencem ao espaço resumo criptográfico finito $C$.
+  Dizemos que $CH=(KeyGen, Hash, Collision)$ é definida sobre $(M, R,
+  C)$.
+\end{itemize}
+
+Este esquema de hash camaleão tem propriedades idênticas às das hashes
+camaleão convencionais. As duas propriedades que precisam ser
+definidas de maneira diferente são:
+
+
+
+
+
+
+\bibliography{report}{}\bibliographystyle{plain}
+\end{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Hashes Camaleão com ID}
 
