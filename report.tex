@@ -202,8 +202,18 @@ camaleão observando as seguintes propriedades deles:
   em encontrar colisões. Também será válida a contrapositiva de que se
   um esquema não é livre de exposição de chave, ele não será
   resistente à falsificação.
+\item Um \textbf{Trapdoor de Pré-Imagem} é característica de algumas
+  hashes camaleão onde de posse da chave privada podemos calcular não
+  apenas uma colisão, mas também obter uma pré-imagem. Em outras
+  palavras, existe um algoritmo probabilístico $PreImage(m, c)$ que
+  retorna um valor $r$ tal que $Hash(m, r)=c$.
 
-  
+  Quando tal algoritmo existe, podemos apenas definir ele sem definir
+  explicitamente o algoritmo que calcula colisões por meio da chave
+  privada. Isso porque:
+
+  $$Collision(\mathcal{SK}, m, r, m') = PreImage(\mathcal{SK}, m',
+  Hash(\mathcal{PK}, m, r))$$
 \end{itemize}
 
   
@@ -368,31 +378,6 @@ i7, foi obtido os seguintes tempos de execução:
 \end{center}
 
 
-\subsection{Construção Baseada em Permutações do RSA}
-
-Esta proposta funciona da mesma forma que a anterior, mas utiliza o
-RSA como função de permutação. Na literatura não foi encontrada uma
-proposta de uso desta hash camaleão, provavelmente devido ao seu
-desempenho pior comparada à anterior. 
-
-Contudo, esta construção está sencdo mencionada aqui devido a possuir
-algumas características únicas, como ser até onde se sabe livre de
-exposição de chaves, resistente à falsificação e possuir definida uma
-função $PreImage$ para calcular a pré-imagem com a chave privada.
-
-\subsubsection{Medida de Desempenho}
-
-Executando uma implementação de 2048 bits em mensagens de 54 bytes, os
-seguintes tempos de execução foram obtidos:
-
-\begin{center}
-\begin{tabular}{|c|c|c|c|c|c|}
-  \hline
-  KeyGen & 0,4040s & Hash & 0,0146s & Collision & 2,1200s\\
-  \hline
-\end{tabular}
-\end{center}
-
 \subsection{Construção Baseada em Logaritmo Discreto (Krawczyk) (2000)
   \cite{krawczyk}}
 
@@ -546,40 +531,120 @@ Exatamente o resultado esperado.
 \end{tabular}
 \end{center}
 
-\subsection{Construção Baseada em Assinatura de Nyberg-Rueppel
+\subsection{Construção Baseada em Assinaturas  Nyberg-Rueppel
   (Ateniese e Medeiros) (2005)\cite{ateniese}}
+
+Esta construção se baseia na existência do esquema de assinaturas
+Nyberg-Rueppel, um dos esquemas baseados no ElGamal. Nele, começamos
+gerando dois números primos $p$ e $q$ tais que $p=2q+1$. Escolhemos
+também um gerador $g$ do subgrupo de resíduos quadráticos de
+$\mathbb{Z}_p$ de ordem $q$. Escolhemos como chave privada um número
+$x$ módulo $q$ e escolhemos como chave pública um valor $y=g^x \mod
+p$.
+
+Em uma das variações dessa assinatura, assinar uma mensagem $m$ é
+feito por meio da equação:
+
+$$
+Sign(m) = (r, s) = ((g^k \mod p) \mod q, k-rmx \mod q)
+$$
+
+E uma assinatura $(r, s)$ é válida para uma mensagem $m$ se:
+
+$$
+r = (g^sy^{rm} \mod p) \mod q
+$$
+
+O valor $k$ acima deve ser sempre escolhido aleatoriamente e não pode
+ser revelado, ou a chave privada poderia ser facilmente extraída.
+
+A ideia será gerar um esquema de hash camaleão no qual a equação de
+verificação acima será usada para o nosso hash e a equação de
+assinatura será usada para obter uma pré-imagem após fazermos algumas
+modificações. A única mudança que precisará ser feita será a
+substituição do produto $mr$ pelo resultado do hash convencional
+$\mathcal{H}(m||r)$ em todas as equações acima. Desta forma, ficaremos
+com as equações abaixo que servirão de base para nosso hash camaleão.
+
+Equações de verificação:
+
+$$
+r = (g^k \mod p) \mod q
+$$
+
+$$
+s = k-\mathcal{H}(m||r)x \mod q
+$$
+
+Equação de assinatura:
+
+$$
+r = (g^sy^{\mathcal{H}(m||r)} \mod p) \mod q
+$$
+
+\textbf{A Compreender: }Por que foi necessário fazer a substituição de
+$mr$ por $\mathcal{H}(m||r)$? A rigor, o esquema continuaria
+funcionando se essa substituição não tivesse sido feita.
 
 \subsubsection{Funções}
 
-\textbf{KeyGen: }Assuma termos acesso a um grupo de inteiros módulo
-$p=2q+1$, sendo $p$ e $q$ primos. A chave pública é $(g, y=g^x)$. A
-chave privada é $x$. Os valores são sempre módulo $p$, exceto nos
-expoentes que são módulo $q$. Então a chave privada deve ser vista
-como um valor módulo $q$.
+\textbf{KeyGen: }A geração de chaves é idêntica à do esquema de
+assinatura. Começamos gerando dois números primos $p$ e $q$ tais que
+$p=2q+1$. Escolhemos também um gerador $g$ do subgrupo de resíduos
+quadráticos de $\mathbb{Z}_p$ de ordem $q$. Escolhemos como chave
+privada um número $x$ módulo $q$ e escolhemos como chave pública um
+valor $y=g^x \mod p$.
 
-\textbf{Hash: }Neste esquema, consideramos o $r$ como sendo uma tupla
-de dois valores aleatórios $(r_1, r_2)$. O hash é calculado então:
-
-$$ Hash(m, (r_1, r_2)) = \left[r_1-(y^{\mathcal{H}(m||r_1)}g^{r_2}
-  \mod p)\right] \mod q
-$$
-
-Assumindo $\mathcal{H}(m||r_1)$ como o cálculo de um hash
-criptográfico convencional da concatenação de $m$ e $r_1$.
-
-\textbf{PreImage:} Seja $C$ o valor da hash desejada para uma
-mensagem $m$, gere $r_1'$ pela fórmula abaixo para qualquer $k$
-aleatório:
+\textbf{Hash: } Geraremos uma função de hash que será baseada na
+verificação para saber se uma assinatura Nyberg-Rueppel é válida para
+uma mensagem $m$. Nosso hash será definido como:
 
 $$
-r_1' = \left[(C + (g^k \mod p))\right] \mod q
+Hash(m, (r, s)) = r - (g^sy^{\mathcal{H}(m, r)} \mod p) \mod q
 $$
 
-E gere $r_2'$ de acordo com a equação abaixo usando o mesmo valor $k$:
+A função hash pode então ser interpretada intuitivamente como uma
+forma de calcular a diferença entre o parâmetro aleatório $(r, s)$ e
+uma assinatura legítima de Nyberg-Rueppel. Se por uma grande
+coincidência escolhêssemos como valores $(r, s)$ uma assinatura
+Nyberg-Rueppel legítima da mensagem $m$, então isso significa que o
+valor de nosso hash seria zero. Nos demais casos, o hash assume
+qualquer outro valor módulo $q$.
+
+
+\textbf{PreImage:} Se a nossa função hash pode ser vista
+intuitivamente como a diferença entre o parâmetro aleatório $(r, s)$ e
+uma assinatura legítima, então a nossa função de pré-imagem pode ser
+vista como um método que calcula uma assinatura legítima
+Nyberg-Rueppel e depois adiciona uma perturbação na assinatura para
+que ela fique com a diferença desejada em relação à uma assinatura legítima.
+
+Dada uma mensagem $m$ e o \textit{digest} desejado $c$, podemos gerar
+um valor $(r, s)$ fazendo:
 
 $$
-r_2' = \left[k-\mathcal{H}(m'||r_1')x\right] \mod q
+r = c + (g^k \mod p) \mod q
 $$
+
+$$
+s = k-\mathcal{H}(m||r)x \mod q
+$$
+
+\textbf{Prova: }Demonstraremos que $Hash(m, PreImage(c, m)) = c$.
+
+\begin{equation*}
+  \begin{split}
+    &Hash(m, PreImage(c, m))\\
+    &= Hash(m, (c+(g^k \mod p) \mod q, k-x\mathcal{H}(m, r) \mod q))\\
+    &= r - (g^sy^{\mathcal{H}(m, r)} \mod p) \mod q\\
+    &= r - (g^{x\mathcal{H}(m, r) + s} \mod p) \mod q\\
+    &= r - (g^{x\mathcal{H}(m, r) + k - x\mathcal{H}(m, r)} \mod p) \mod q\\
+    &= c+ (g^k \mod p) - (g^{k} \mod p) \mod q\\
+    &= c\\
+  \end{split}
+\end{equation*}
+
+
 
 \textbf{Collision:} Como existe uma função $PreImage$, podemos
 obter uma colisão calculando:
@@ -588,60 +653,234 @@ $$ Collision(\mathcal{Sk}, m, r, m') = PreImage(\mathcal{SK},
 Hash(\mathcal{PK}, m, r), m')
 $$
 
-Isso funciona e nos retorna $(r_1', r_2')$ com as propriedaes
-desejadas, pois se formos usar tais valores para computar o hash da
-mensagem $m'$, obtemos:
-
-\begin{equation}
-\begin{split}
-  Hash(m', (r_1', r_2')) &= \left[r_1'-(y^{\mathcal{H}(m'||r_1')}g^{r_2'} \mod p)\right] \mod q\\
-  &=\big[\left[(Hash(m, (r_1, r_2)) + (g^k \mod p))\right] \mod q\\
-    &\qquad-(y^{\mathcal{H}(m'||r_1')}g^{[k-\mathcal{H}(m'||r_1')x]} \mod p)\big] \mod q\\
-  &=\big[\left[(Hash(m, (r_1, r_2)) + (g^k \mod p))\right] \mod q\\
-    &\qquad-(g^{x\mathcal{H}(m'||r_1')}g^{[k-\mathcal{H}(m'||r_1')x]} \mod p)\big] \mod q\\
-  &= Hash(m, (r_1, r_2)) + g^k - g^k \mod q\\
-  &= Hash(m, (r_1, r_2))
-\end{split}
-\end{equation}
-
-%\subsection{Propriedades}
-%
-%\textbf{Resistência a Colisão: }Sim se assumirmos que é seguro usar
-%duas vezes variações do esquema de assinatura de Nyberg-Rueppel. O
-%artigo que apresenta este método cita uma referência que teria provado
-%isso.
-
-%\textbf{Ocultação de Mensagem: }Não.
-
-%\textbf{Livre de Exposição de Chave: }Sim.
-
-%\textbf{Cálculo de Primeira Pré-Imagem: }Não.
-
 \subsubsection{Variações}
 
 Ateniese e Medeiros, no mesmo artigo em que apresentou esta construção,
 apontou que é possível definir a função hash como:
 
-$$ Hash(\mathcal{PK}, m, r) =
-\left(r_1y^{\mathcal{H}(m||r_1)}g^{r_2} \right)\mod p
+$$ Hash(\mathcal{PK}, m, (r, s)) =
+\left(ry^{\mathcal{H}(m||r)}g^{s} \right)\mod p
 $$
 
-Em tal caso, para obter a função $PreImage$, o cálculo de $r_2'$
-não se modifica, mas $r_1'$ é obtido com a nova fórmula:
+Em tal caso, para obter a função $PreImage$, calculamos:
 
 $$
-r_1'=Cg^{-k} \mod p
+r'=Cg^{-k} \mod p
 $$
+
+$$
+s' = k-\mathcal{H}(m||r')x \mod q
+$$
+
+Pode-se provar que isso também funciona mostrando que $Hash(m,
+PreImage(m, c))=c$:
+
+\begin{equation}
+\begin{split}
+  Hash(m, PreImage(m, c))
+  &= Hash(m, (cg^{-k} \mod p, k-\mathcal{H}(m||r)x \mod q))\\
+  &= (cg^{-k} \mod p)y^{\mathcal{H}(m||r)}g^{k-\mathcal{H}(m||r)x\mod q}\mod p\\
+  &= (cg^{-k} \mod p)g^{\mathcal{H}(m||r)x}g^{k-\mathcal{H}(m||r)x\mod q}\mod p\\
+  &= cg^{-k+\mathcal{H}(m||r)x+k-\mathcal{H}(m||r)x \mod q} \mod p\\
+  &= c\\
+\end{split}
+\end{equation}
+
+O artigo que introduz a assinatura de Nyberg-Rueppel \cite{nyberg}
+menciona um total de 5 variações de cálculo de assinatura e
+verificação que podem ser adaptados para esquemas de hash camaleão
+bastante semelhantes. A imagem abaixo retirada do artigo apresdenta
+todas as variações:
+
+\includegraphics[width=\textwidth]{imagens/nyberg.png}
+
+Todas as variações acima foram geradas à partir do mesmo conjunto
+inicial de equações e por isso são relacionados.
+
+O q-NEW foi o primeiro esquema que mostramos e mostra-se o mais
+atrativo por não precisar de qualquer cálculo de inverso
+multiplicativo. O p-NEW é quase igual, sendo que a principal diferença
+é em qual momento calculamos o módulo $q$ do $r$ ($r'=r \mod q$).
+
+O MR(p)-NEW é a variação que vimos logo depois e que também foi
+apresentada por Ateniese e Medeiros na forma adaptada de um hash
+camaleão.
+
+Podemos mostrar aqui também como seria um hash camaleão baseado na
+forma MR(q)-NEW e Reduced MR(p)-NEW.
+
+O hash camaleão MR(q)-NEW seria:
+
+$$
+Hash(m, (r, s)) = (g^sy^{\mathcal{H}(m||r) \mod p})^{-1}r \mod q
+$$
+$$
+PreImage(c, m) = (c(g^k \mod p) \mod q, k-\mathcal{H}(m||r)x \mod q)
+$$
+
+\textbf{Prova: }Demonstraremos que $Hash(m, PreImage(c, m)) = c$.
+
+\begin{equation*}
+  \begin{split}
+    &Hash(m, PreImage(c, m))\\
+    &= Hash(m, (cg^{k} \mod p, k-x\mathcal{H}(m||r) \mod q))\\
+    &= (g^sy^{\mathcal{H}(m||r)})^{-1}r \mod p\\
+    &= (g^{s+x\mathcal{H}(m||r)})^{-1}r \mod p\\
+    &= (g^{k-x\mathcal{H}(m||r)+x\mathcal{H}(m||r)})^{-1}r \mod p\\
+    &= g^{-k}cg^{k} \mod p\\
+    &= c\\
+  \end{split}
+\end{equation*}
+
+Por fim, o hash camaleão Reduced MR(p)-NEW seria:
+
+$$
+Hash(m, (r, s)) = r-(mg^{-s}y^{-r} \mod p) \mod q
+$$
+
+$$
+PreImage(c, m) = (c+(mg^{-k} \mod p) \mod q, k-rx \mod q)
+$$
+
+\textbf{Prova: }Demonstraremos que $Hash(m, PreImage(c, m)) = c$.
+
+\begin{equation*}
+  \begin{split}
+    &Hash(m, PreImage(c, m))\\
+    &= Hash(m, (c+(mg^{-k} \mod p) \mod q, k-rx \mod q))\\
+    &= r-(mg^{-s}y^{-r} \mod p) \mod q\\
+    &= r-(mg^{-s-xr} \mod p) \mod q\\
+    &= r-(mg^{-k+rx-xr} \mod p) \mod q\\
+    &= r-(mg^{-k} \mod p) \mod q\\
+    &= c+(mg^{-k} \mod p)-(mg^{-k} \mod p) \mod q\\
+    &= c\\
+  \end{split}
+\end{equation*}
+
+\subsubsection{Segurança}
+
+Uma das vantagens de definir hashes camaleão à partir de assinaturas
+digitais é que se as assinaturas são seguras, pode-se derivar deste
+fato muito da segurança das hashes camaleão baseadas nelas.
+
+A resistência à colisão e o fato do esquema ser livre de exposição de
+chave deriva da própria segurança da assinatura de Nyber Rueppel.
+
+Contudo, não necessariamente um esquema de assinatura continua sendo
+seguro se uma mesma mensagem é assinada várias vezes e um atacante tem
+acesso à tais assinaturas. Felizmente, no caso da assinatura de
+Nyberg-Rueppel, isso foi demonstrado em \cite{twin}, no Apêndice A.
+
+Já a segurança semântica deste esquema foi demonstrada por Ateniese e
+Medeiros no artigo que apresentou este esquema de assinatura.
+
+\subsubsection{Medida de Desempenho}
+
+Este é o desempenho obtido do hash camaleão de Nyberg-Rueppel q-NEW,
+apresentado por Ateniese e Medeiros e que mostra-se mais atrativo por
+não precisar de cálculo de inverso multiplicativo:
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+  \hline
+  KeyGen & 0,017544s & Hash & 0,019996s & Collision & 0,007057s\\
+  \hline
+\end{tabular}
+\end{center}
+
+\subsection{Construção Baseada no DSA}
+
+A seção anterior nos leva a questionar se a mesma técnica não poderia
+ser usada para obter hashes camaleão baseados em outras assinaturas
+que também seriam derivadas do Elgamal. Seria uma questão de montar um
+hash à partir da equação de verificação e obter uma função de
+pré-imagem à partir da equação que define a assinatura.
+
+Esta seção mostra que é possível fazer isso com a assinatura DSA.
+
+\subsubsection{Funções}
+
+\textbf{KeyGen: } A geração de chaves funciona de maneira idêntica à
+geração do DSA. Primeiro escolhe-se dois primos $p$ e $q$ tal que
+$p-1$ é um múltiplo de $q$. Escolhemos então um inteiro $h$ aleatório
+entre 2 e $p-2$. É possível simplesmente usar $h=2$. Por fim,
+computamos $g=h^{(p-1)/q} \mod p$. Assim $(p, q, g)$ são os parâmetros
+de sistema usados pelo algoritmo.
+
+Para a chave privada escolhemos um valor $\mathcal{SK}=x$ menor que
+$q$. E a chave pública é $\mathcal{PK}=y=g^x \mod p$;
+
+\textbf{Hash:}
+
+Verificar uma assinatura DSA $(r, s)$ para uma mensagem $m$ envolve
+checar se é verdade que:
+
+$$
+(g^{\frac{\mathcal{H}(m)}{s} \mod q}y^{\frac{r}{s} \mod q} \mod p) \mod q = r
+$$
+
+Baseando-se nessa equação construímos nossa função de hash:
+
+$$
+Hash(m, (r, s)) = r - (g^{\frac{\mathcal{H}(m)}{s} \mod q}y^{\frac{r}{s} \mod q} \mod p) \mod q
+$$
+
+\textbf{PreImage:}
+
+Criar uma assinatura legítima DSA para a mensagem $m$ envolve escolher
+$(r, s)$ tais que:
+
+$$
+r = (g^k \mod p) \mod q
+$$
+
+$$
+s = k^{-1}(\mathcal{H}(m)+xr) \mod q)
+$$
+
+Exatamente como na primeira assinatura Nyberg-Rueppel da seção
+anteriror, podemos controlar o valor da hash que definimos aqui apenas
+perturbando o valor de $r$ somando à ele o valor do \textit{digest}
+desejado:
+
+$$
+PreImage(m, c) = (c + (g^k \mod p) \mod q,k^{-1}(\mathcal{H}(m)+xr) \mod q)
+$$
+
+\textbf{Prova:}Demonstraremos que $Hash(m, PreImage(c, m)) = c$.
+
+\begin{equation*}
+  \begin{split}
+    &Hash(m, PreImage(c, m))\\
+    &= Hash(m, (c + (g^k \mod p) \mod q, k^{-1}(\mathcal{H}(m)+xr) \mod q))\\
+    &= r - (g^{\frac{\mathcal{H}(m)}{s} \mod q}y^{\frac{r}{s} \mod q} \mod p) \mod q\\
+    &= r - (g^{\frac{\mathcal{H}(m)+xr}{s} \mod q} \mod p) \mod q\\
+    &= r - (g^{\frac{k(\mathcal{H}(m)+xr)}{\mathcal{H}(m)+xr} \mod q} \mod p) \mod q\\
+    &= c + (g^k \mod p) - (g^{k} \mod p) \mod q\\
+    &= c\\
+    \end{split}
+\end{equation*}
+
+\subsubsection{Segurança}
+
+Assim como na seção anterior, a segurança deste esquema deriva da
+própria segurança do esquema de assinaturas DSA e da propriedade que o
+DSA continua seguro mesmo que um atacante tenha acesso a mais de uma
+assinatura válida para uma mesma mensagem. A segunda propriedade foi
+demonstrada em \cite{twin}.
+
+A segurança semântica deste esquema ainda está para ser demonstrada.
 
 \subsubsection{Medida de Desempenho}
 
 \begin{center}
 \begin{tabular}{|c|c|c|c|c|c|}
   \hline
-  KeyGen & 0,005568s & Hash & 0,009608s & Collision & 0,000044s\\
+  KeyGen & 0,0020026s & Hash & 0,018312s & Collision & 0,006846s\\
   \hline
 \end{tabular}
 \end{center}
+
 
 \subsection{Construção Baseada no Protocolo Sigma de Fiat-Shamir
   (Mihir Bellare e Todor Ristov) (2008)\cite{sigma}}
@@ -727,7 +966,7 @@ tais que $g_1^{s_1}g_2^{s_2} = x$.
 \textbf{Hash: } É definida pela seguinte função:
 
 $$
-Hash(\mathcal{PK}=(g_1, g_2, x), m, r=(r_1, r_2)) = x^mg_1^{z_1}g_2^{z_2}
+Hash(\mathcal{PK}=(g_1, g_2, x), m, r=(r_1, r_2)) = x^mg_1^{r_1}g_2^{r_2}
 $$
 
 \textbf{Collision: } Pela propriedade da exponenciação, dados $m$,
@@ -746,6 +985,22 @@ $$
 A mesma equação também nos revela que o esquema não é livre da
 exposição de chaves, pois diante de uma colisão os valores $s_1$,
 $s_2$ podem ser trivialmente isolados.
+
+\textbf{Prova: }Pode-seprovar o funcionamento desta construção
+mostrando que $Hash(m', Collision(m, r, m')) = Hash(m, r)$:
+
+\begin{equation}
+\begin{split}
+  Hash(m', Collision(m, r, m'))
+  &= Hash(m', ((m-m')s_1+r_1, (m-m')s_2+r_2))\\
+  &= x^{m'}g_1^{(m-m')s_1+r_1}g_2^{(m-m')s_2+r_2}\\
+  &= x^{m'}x^{m-m'}g_1^{r_1}g_2^{r_2}\\
+  &= Hash(m, r)\\
+\end{split}
+\end{equation}
+
+Contudo, embora funcione, este esquema não apresenta qualquer vantagem
+em relação à outros esquemas baseados em logaritmo discreto.
 
 \subsection{Construção Baseada em Reticulados (David Cash)
   (2010)\cite{reticulado}}
@@ -908,56 +1163,14 @@ número da subseção em que ele foi apresentado.
     \hline
     Esquema&2.1&2.2&2.3&2.4&2.5&2.6&2.7\\
     \hline
-    Livre de Exposição de Chave&X&\ok&X&\ok&X&X&\ok\\
+    Livre de Exposição de Chave&X&X&\ok&\ok&X&X&\ok\\
     \hline
-    Resistência à Falsificação&X&\ok&X&\ok&X&X&\ok\\
+    Resistência à Falsificação&X&X&\ok&\ok&X&X&\ok\\
     \hline
-    Primeira Pré-Imagem&\ok&\ok&X&\ok&\ok&X&X\\
+    Trapdoor de Pré-Imagem&\ok&X&\ok&\ok&\ok&X&X\\
     \hline
   \end{tabular}
 \end{center}
-
-
-\section{Hashes Camaleão com Trapdoor de Pré-Imagem}
-
-Estes hashes camaleão tem como principal diferença diante dos
-anteriores o fato de que a sua chave privada, ou \textit{trapdoor}
-permitir o cálculo de pré-imagens. Isso permite o seu uso em
-aplicações distintas, e traz a necessidade de definir de maneira
-diferente suas propriedades de segurança.
-
-Um Esquema de Hash Camaleão com Trapdoor de Pré-Imagem $CH_{PI}$ é uma
-tupla formada por três algoritmos eficientes $KeyGen$, $Hash$ e
-$Preimage$ tais que:
-
-\begin{itemize}
-\item\textbf{KeyGen} é um algoritmo probabilístico invocado como
-  $(\mathcal{PK}, \mathcal{SK}) \leftarrow^\$ KeyGen()$ onde
-  $\mathcal{PK}$ é chamado de chave pública e $\mathcal{SK}$ é chamado
-  de chave privada.
-\item\textbf{Hash}: é um algoritmo determinístico invocado como $c
-  \leftarrow Hash(\mathcal{PK}, m, r)$ onde $\mathcal{PK}$ é uma chave
-  pública (como retornada por $KeyGen$), $m$ é uma mensagem, $r$ é um
-  parâmetro aleatório e $c$ é o resumo criptográfico.
-\item\textbf{Preimage}: é um algoritmo probabilístico invocado como $r
-  \leftarrow^\$ Preimage(\mathcal{SK}, m, c)$ onde $\mathcal{SK}$ é a
-  chave privada (como retornada por $KeyGen$), $m$ é uma mensagem, $c$
-  é um resumo criptográfico de modo que a função retorna $r$ tal que:
-
-  $$ Hash(\mathcal{PK}, m,r) = c$$
-\item Assumimos que as mensagens pertencem à um espaço de mensagens
-  finito $M$, os parâmetros aleatórios pertencem à um espaço de
-  parâmetros aleatórios finito $R$ e todos os resumos criptográficos
-  possíveis pertencem ao espaço resumo criptográfico finito $C$.
-  Dizemos que $CH=(KeyGen, Hash, Collision)$ é definida sobre $(M, R,
-  C)$.
-\end{itemize}
-
-Este esquema de hash camaleão tem propriedades idênticas às das hashes
-camaleão convencionais. As duas propriedades que precisam ser
-definidas de maneira diferente são:
-
-
 
 
 

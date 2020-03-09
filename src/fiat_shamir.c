@@ -185,7 +185,7 @@ void keygen(unsigned n, PK *pk, SK *sk){
   mpz_clear(tmp);
 }
 
-void hash(PK *pk, MSG *msg, RND *rnd, DIGEST *digest){
+void chamhash(PK *pk, MSG *msg, RND *rnd, DIGEST *digest){
   int i, j;
   if(8 * msg -> size > pk -> size){
     fprintf(stderr, "ERRO: Calculando hash de mensagem grande demais.\n");

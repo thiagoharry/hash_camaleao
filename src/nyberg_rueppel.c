@@ -135,7 +135,7 @@ void keygen(unsigned n, PK *pk, SK *sk){
   mpz_powm(pk -> y, pk -> g, sk -> x, pk -> p);
 }
 
-void hash(PK *pk, MSG *msg, RND *rnd, DIGEST *digest){
+void chamhash(PK *pk, MSG *msg, RND *rnd, DIGEST *digest){
   mpz_t aux;
   mpz_init(aux);
   // Computing y^e:

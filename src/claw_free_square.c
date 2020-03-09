@@ -217,7 +217,7 @@ void free_keys(PK *pk, SK *sk){
   mpz_clear(sk -> sqrt4_1);
 }
 
-void hash(PK *pk, MSG *msg, RND *rnd, DIGEST *digest){
+void chamhash(PK *pk, MSG *msg, RND *rnd, DIGEST *digest){
   RND r;
   int i, j;
   mpz_init_set(r.rnd, rnd -> rnd);

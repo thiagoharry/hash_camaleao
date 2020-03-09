@@ -1,7 +1,9 @@
 CC=gcc
+CPP=g++
 PROG=chamhash
 FLAGS=-O2 -g -Wall
 LIB=-lgmp -lbsd -lm
+PALISADE=-I/usr/local/include/palisade/core/ -I/usr/local/include/palisade/ -L/usr/local/lib/
 
 help:
 	@echo "make doc: Build documentation"
@@ -27,5 +29,7 @@ fiat_shamir:
 	${CC} ${FLAGS} src/mod_math.c src/fiat_shamir.c -o ${PROG} ${LIB}
 dsa:
 	${CC} ${FLAGS} src/mod_math.c src/dsa.c -o ${PROG} ${LIB}
+cash:
+	${CPP} ${FLAGS} ${PALISADE} src/cash.cpp -o ${PROG} -lPALISADEcore
 clean:
 	rm -rf *~ *.bbl *.aux *.blg *.dvi *.log 

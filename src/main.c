@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <string.h>
 #define MSG_SIZE 32
 
 /********************* TIMER **************************************/
@@ -54,7 +56,7 @@ void benchmark(int security_parameter){
     random_msg(&pk, &msg1, MSG_SIZE);
     random_rnd(&pk, &r1);
     TIMER_BEGIN();
-    hash(&pk, &msg1, &r1, &digest);
+    chamhash(&pk, &msg1, &r1, &digest);
     TIMER_END();
     free_msg(&msg1);
   }
@@ -107,6 +109,7 @@ int main(int argc, char **argv){
     exit(0);
   }
   init_digest(&digest);
+  printf("OK\n");
   init_rnd(&r);
   init_rnd(&r2);
   keygen(security_parameter, &pk, &sk);
@@ -114,13 +117,13 @@ int main(int argc, char **argv){
   random_msg(&pk, &msg2, MSG_SIZE);
   print_keys(&pk, &sk);
   random_rnd(&pk, &r);
-  hash(&pk, &msg1, &r, &digest);
+  chamhash(&pk, &msg1, &r, &digest);
   print_hash(&msg1, &r, &digest);
   if(has_first_pre_image)
     firstpreimage(&sk, &msg2, &digest, &r2);
   else
     collision(&sk, &msg1, &r, &msg2, &r2);
-  hash(&pk, &msg2, &r2, &digest);
+  chamhash(&pk, &msg2, &r2, &digest);
   print_hash(&msg2, &r2, &digest);
   free_msg(&msg1);
   free_msg(&msg2);

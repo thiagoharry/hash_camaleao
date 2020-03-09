@@ -185,7 +185,7 @@ void keygen(unsigned n, PK *pk, SK *sk){
   mpz_clear(q);
 }
 
-void hash(PK *pk, MSG *msg, RND *rnd, DIGEST *digest){
+void chamhash(PK *pk, MSG *msg, RND *rnd, DIGEST *digest){
   RND r;
   int i, j;
   mpz_init_set(r.rnd, rnd -> rnd);
