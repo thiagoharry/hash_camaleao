@@ -1,0 +1,152 @@
+\documentclass{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage[brazilian]{babel}
+
+\title{Hashes Camaleão de Pré-Imagem Pós-Quânticas baseadas em
+Reticulados}
+\author{Thiago Leucz Astrizi}
+\institute{UFSC}
+\date{2020}
+
+\begin{document}
+
+\frame{\titlepage}
+
+\begin{frame}
+    \frametitle{Reticulados}
+    \begin{block}{Definição de Reticulado}
+    $$
+    \mathcal{L}(b_1, \ldots, b_n)= \left\{\sum_{i=1}^nx_ib_i:x_i \in \mathbb{Z}, b_i\in \mathbb{R}^n\right\}
+    $$
+    \end{block}
+    \begin{block}{Reticulados q-ários}
+    $$
+    \Lambda^{\perp}(A)=\{y \in \mathbb{Z}^m:Ay = 0 \mod q\}
+    $$
+    \end{block}
+    
+    Não é necessariamente um reticulado, mas é uma coclasse (``coset''),
+    ou um reticulado transladado:
+    
+    $$
+    \Lambda^{\perp}_u(A)=\{y \in \mathbb{Z}^m:Ay = u \mod q\}
+    $$
+\end{frame}
+
+\begin{frame}
+\frametitle{Hashes em Reticulados}
+
+\begin{block}{Hash de Ajtai}
+$$
+H(m) = Am \mod q
+$$
+para $m\in \{0,1\}^m$ e $A$ escolhida aleatoria e uniformemente de
+$\mathbb{Z}^{n\times m}_q$.
+\end{block}
+
+Encontrar colisões para a mensagem $m$ é equivalente a encontrar um
+vetor pequeno na coclasse $\Lambda^{\perp}_m(A)$. Um problema
+presumido como sendo difícil.
+
+\end{frame}
+
+\begin{frame}{Escondendo Trapdoors em $A$}
+    Ao invés de escolher $A$ uniforme e aleatoriamente de
+    $\mathbb{Z}^{n\times m}_q$, podemos gerar ele de maneira aleatória,
+    mas mantendo um \textit{trapdoor} nele.
+    
+    Geramos $A$ assim:
+    
+    $$
+    A=[\overline{A}|G-\overline{A}R]
+    $$
+    
+    \begin{itemize}
+        \item$\overline{A}\in\mathbb{Z}_q^{n\times(m-w)}$: Uma matriz
+        escolhida uniforme e aleatoriamente.
+        \item$G\in\mathbb{Z}_q^{n \times w}$:É uma matriz primitiva
+        fixa para a qual conseguimos calcular de maneira eficiente o
+        inverso da função $f_G(m)=Gm \mod q$.
+        \item$R\in\mathbb{Z}_q^{(m-w)\times w}$: É o nosso 
+        \textit{trapdoor}. Para que ele tenha uma boa qualidade, ele
+        deve ser formado por valores pequenos.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Hashes Camaleão em Reticulados}
+
+\begin{block}{Função de Mão Única com trapdoor}
+\begin{itemize}
+    \item $f_A(n) = An \mod q$.
+    \item $f_A^{-1}$ pode ser calculada probabilisticamente com o
+    trapdoor $R$.
+\end{itemize}
+\end{block}
+    
+    \begin{block}{Hash Camaleão de David Cash}
+    A adição de vetores aqui é sempre módulo $q$:
+    $$
+    \mathcal{H}:\{0,1\}^l \rightarrow \mathbb{Z}_q^{n}
+    $$
+    $$
+    Hash(m, r) = \mathcal{H}(m) + f_A(r)
+    $$
+    $$
+    Collision(m, r, m') = f_A^{-1}\big(\mathcal{H}(m)-\mathcal{H}(m')+f_A(r)\big)
+    $$
+    $$
+    PreImage(m, c) = f_A^{-1}(c - \mathcal{H}(m))
+    $$
+    \end{block}
+\end{frame}
+
+\begin{frame}{Esquema de Assinatura em Reticulados}
+
+Esquema de assinatura proposto em 2007 no artigo \href{https://www.cs.toronto.edu/~vinodv/trapcvp.pdf}{``Trapdoors for Hard Lattices and New Cryptographic Constructions''}.
+
+    \begin{block}{Esquema de Assinatura GPV}
+    $$
+    Sign(\mu, f_A^{-1}) = f_A^{-1}(\mathcal{H}(\mu))
+    $$
+    
+    $$
+    Verify(\mu, x, f_A):  f_A(x) =^{?} \mathcal{H}(\mu)
+    $$
+    
+    \end{block}
+\end{frame}
+
+\begin{frame}{Hash Camaleão  baseada na Assinatura GPV}
+    
+    Usando a relação entre assinaturas e hashes camaleão podemos
+    derivar uma hash camaleão da assinatura GPV. Mas ela termina
+    sendo apenas uma variação muito próxima da hash camaleão
+    usada por David Cash.
+    
+    \begin{block}{Esquema de Assinatura GPV}
+    $$
+    Sign(\mu, f_A^{-1}) = f_A^{-1}(\mathcal{H}(\mu))
+    $$
+    
+    $$
+    Verify(\mu, x, f_A):  f_A(x) =^{?} \mathcal{H}(\mu)
+    $$
+    
+    \end{block}
+    
+    \begin{block}{Hash Camaleão GPV}
+    
+    $$
+    Hash(m, r) = \mathcal{H}(m) - f_A(r)
+    $$
+    
+    $$
+    PreImage(m, c) = f_A^{-1}(\mathcal{H}(m) - c)
+    $$
+    
+    \end{block}
+    
+\end{frame}
+
+\end{document}
