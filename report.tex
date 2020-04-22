@@ -1251,13 +1251,33 @@ We also have the following properties:
  \section{Construction using Lattices (David Cash and Daniele Micciancio)
  (2010 and 2011)\cite{reticulado}\cite{micciancio2012trapdoors}}
  
- This chameleon hash scheme in fact shows how to construct a chameleon hash from a regular cryptographic hash function $H$ and a probabilistic one-way trapdoor function $f$.
+ This chameleon hash scheme in fact shows how to construct a chameleon
+ hash from a regular cryptographic hash function $H$ and a
+ probabilistic one-way trapdoor function $f$.
  
- A probabilistic trapdoor function scheme $T$ is a tuple of algorithms $(G, F, F^{-1})$ defined over $(X, Y)$. The algorithm $G$ is a probabilistic algorithms that givem the security and system parameters returns a pair of keys $(\mathcal{PK}_T, \mathcal{SK}_T)$, $F$ is a deterministic algorithm that given the security and system parameters, the key $\mathcal{PK}$ and $x \in X$, returns $y \in Y$. And $F^{-1}$ is a probabilistic algorithm that given the security and system parameters, the key $\mathcal{SK}$ and a $y \in Y$, returns a $x \in X$ such as $F(x)=y$.
+ A probabilistic trapdoor function scheme $T$ is a tuple of algorithms
+ $(G, F, F^{-1})$ defined over $(X, Y)$. The algorithm $G$ is a
+ probabilistic algorithms that givem the security and system
+ parameters returns a pair of keys $(\mathcal{PK}_T, \mathcal{SK}_T)$,
+ $F$ is a deterministic algorithm that given the security and system
+ parameters, the key $\mathcal{PK}$ and $x \in X$, returns $y \in
+ Y$. And $F^{-1}$ is a probabilistic algorithm that given the security
+ and system parameters, the key $\mathcal{SK}$ and a $y \in Y$,
+ returns a $x \in X$ such as $F(x)=y$.
  
- An adversary $\mathcal{A}$ which tries to break the one-way trapdoor function security interacts with a challenger which computes: $(\mathcal{PK}, \mathcal{SK}) \leftarrow^{\$}G()$, $x \leftarrow^{\$}X$, $y \leftarrow^{\$}F(\mathcal{PK}, x)$. The challenger sends $y$ to the adversary and the adversary outbuts $\hat x \in X$. The adversary wins if $F(\mathcal{PK}, \hat x) = y$. The one-way trapdoor function is secure if for all efficient adversaries, this probability (represented by OWadv[$\mathcal{A}, T$]) is negligible.
+ An adversary $\mathcal{A}$ which tries to break the one-way trapdoor
+ function security interacts with a challenger which computes:
+ $(\mathcal{PK}, \mathcal{SK}) \leftarrow^{\$}G()$, $x
+ \leftarrow^{\$}X$, $y \leftarrow^{\$}F(\mathcal{PK}, x)$. The
+ challenger sends $y$ to the adversary and the adversary outbuts $\hat
+ x \in X$. The adversary wins if $F(\mathcal{PK}, \hat x) = y$. The
+ one-way trapdoor function is secure if for all efficient adversaries,
+ this probability (represented by OWadv[$\mathcal{A}, T$]) is
+ negligible.
  
- The cryptographic hash function $H$ used here will map elements from set $A$ to set $Y$. And there's a group defined in the set $Y$ using the $+$ operation.
+ The cryptographic hash function $H$ used here will map elements from
+ set $A$ to set $Y$. And there's a group defined in the set $Y$ using
+ the $+$ operation.
  
  The Cash's chameleon hash scheme is defined over $(A, X, Y)$.
  
@@ -1267,23 +1287,30 @@ $$
 KeyGen() := G()
 $$
  
-Given the keys taken from the one-way trapdoor function, we define the $Hash$ algorithm as:
+Given the keys taken from the one-way trapdoor function, we define the
+$Hash$ algorithm as:
 
 $$
 Hash(\mathcal{PK}, m, r) := H(m) - F(\mathcal{PK}, r)
 $$
 
-This is a preimage chameleon hash, as we can define the $PreImage$ algorithm as:
+This is a preimage chameleon hash, as we can define the $PreImage$
+algorithm as:
 
 $$
 PreImage(\mathcal{SK}, m, c) := F^{-1}(\mathcal{SK}, H(m) + c)
 $$
 
 \begin{theorem}
-The Cash's chameleon hash scheme defined above is a functional chameleon hash scheme.
+The Cash's chameleon hash scheme defined above is a functional
+chameleon hash scheme.
 \end{theorem}
 
-\textbf{Proof:} We will show that the $r \in R$ obtained by the $PreImage$ algorithm results in the digest $c$ when used with the message $m$. Notice that composing $F(\mathcal{PK}, \cdot)$ and $F^{-1}(\mathcal{SK}, \cdot)$ give us a identity function. The converse isn't true because $F^{-1}$ is a probabilistic algorithm.
+\textbf{Proof:} We will show that the $r \in R$ obtained by the
+$PreImage$ algorithm results in the digest $c$ when used with the
+message $m$. Notice that composing $F(\mathcal{PK}, \cdot)$ and
+$F^{-1}(\mathcal{SK}, \cdot)$ give us a identity function. The
+converse isn't true because $F^{-1}$ is a probabilistic algorithm.
 
 \begin{equation}
  \begin{split}
@@ -1294,40 +1321,81 @@ The Cash's chameleon hash scheme defined above is a functional chameleon hash sc
  \end{split}
  \end{equation} \qed
 
-The main problem with this construction is that not necessarily the resulting chameleon hash is secure, even if the hash and the one-way trapdoor function are secure. If we cant't invert the trapdoor function and can't invert the hash function, we could still compute $(m, r)$ and $(m', r')$ such as $H(m) - F(\mathcal{PK}, r)=H(m') - F(\mathcal{PK}, r')$.
+The main problem with this construction is that not necessarily the
+resulting chameleon hash is secure, even if the hash and the one-way
+trapdoor function are secure. If we cant't invert the trapdoor
+function and can't invert the hash function, we could still compute
+$(m, r)$ and $(m', r')$ such as $H(m) - F(\mathcal{PK}, r)=H(m') -
+F(\mathcal{PK}, r')$.
 
-When this was originally proposed, wasn't in this general form. The author suggested using this construction with specific primitives: the Ajtai Hash Function and a one-way trapdoor function based in lattices.
+When this was originally proposed, wasn't in this general form. The
+author suggested using this construction with specific primitives: the
+Ajtai Hash Function and a one-way trapdoor function based in lattices.
 
-\subsection{Ajtai Hash Function}
+\subsection{Ajtai's Hash Function}
 
-Given a  matrix $A_1$ of integers module $q$ such as $A_1 \in \mathbb{Z}_q^{m\times n}$, we define the Ajtai hash function defined over messages $\overrightarrow{m} \in \{0,1\}^{n}$ and digests $t \in \mathbb{Z}_q^m$ as:
+Given a matrix $A_1$ of integers module $q$ such as $A_1 \in
+\mathbb{Z}_q^{m\times n}$, we define the Ajtai hash function defined
+over messages $\overrightarrow{m} \in \{0,1\}^{n}$ and digests $t \in
+\mathbb{Z}_q^m$ as:
 
 $$
 H_A(\overrightarrow{m}) = A\overrightarrow{m} \mod q
 $$
  
-To understand if this is a secure hash function, let's check what it means if we can compute the inverse of $H_A$.
+To understand if this is a secure hash function, let's check what it
+means if we can compute the inverse of $H_A$.
 
-For $H_A(\overrightarrow{x})=0$. We know that $A\overrightarrow{0}=0$. And because $A\overrightarrow{a} + A \overrightarrow{b} = A(\overrightarrow{a}+\overrightarrow{b})$, we know that if two vectors are solutions for the equation  $H_A(\overrightarrow{x})=0$, it's sum also is a solution. It means that the set of all solutions for this equation is in a lattice:
+For $H_A(\overrightarrow{x})=0$. We know that
+$A\overrightarrow{0}=0$. And because $A\overrightarrow{a} + A
+\overrightarrow{b} = A(\overrightarrow{a}+\overrightarrow{b})$, we
+know that if two vectors are solutions for the equation
+$H_A(\overrightarrow{x})=0$, it's sum also is a solution. It means
+that the set of all solutions for this equation is in a lattice:
 
 \begin{definicao}
- A \textbf{lattice} is a set of points in $n$-dimentional space with a periodic structure. Given $n$ linearlly independent vectors $\overrightarrow{b_1},\ldots\overrightarrow{b_n} \in \mathbb{R}^n$ the lattice generated by them is the set of vectors:
+ A \textbf{lattice} is a set of points in $n$-dimentional space with a
+ periodic structure. Given $n$ linearlly independent vectors
+ $\overrightarrow{b_1},\ldots\overrightarrow{b_n} \in \mathbb{R}^n$
+ the lattice generated by them is the set of vectors:
  
  $$
- \mathcal{L}(\overrightarrow{b_1},\ldots\overrightarrow{b_n})=\left\{\sum_{i=1}^nx_i\overrightarrow{b_i} : x_i \in \mathbb{Z}\right\}
+ \mathcal{L}(\overrightarrow{b_1},\ldots\overrightarrow{b_n})=\left\{\sum_{i=1}^nx_i\overrightarrow{b_i}
+ : x_i \in \mathbb{Z}\right\}
  $$
  
- The vectors $\overrightarrow{b_1},\ldots\overrightarrow{b_n}$ are the \textbf{basis} for the lattice.
+ The vectors $\overrightarrow{b_1},\ldots\overrightarrow{b_n}$ are the
+ \textbf{basis} for the lattice.
 \end{definicao}
  
-But not all the vectors in the lattice are real solutions for the equation. By definition, lattices have infinite vectors, but our number of solutions are clearly finite. As we defined our set of messages as $\{0, 1\}^n$, only short vectors in the lattice are proper solutions.
+But not all the vectors in the lattice are real solutions for the
+equation. By definition, lattices have infinite vectors, but our
+number of solutions are clearly finite. As we defined our set of
+messages as $\{0, 1\}^n$, only short vectors in the lattice are proper
+solutions.
 
-But what if we take the equation $H_A(\overrightarrow{x})=\overrightarrow{t}$ for some $\overrightarrow{t}\neq\overrightarrow{0}$? In this case, the vector $\overrightarrow{0}$ not necessarily is a solution. But we still have the property that if two vectors are solutions, their sum also is a solution. In this case, the solution isn't necessarily in a lattice, but they are in what is called an \textbf{ideal lattice}. We can convert all ideal lattices to an equivalent lattice summing all their vectors with a constant in a way that moves one of its points to the origin.
+But what if we take the equation
+$H_A(\overrightarrow{x})=\overrightarrow{t}$ for some
+$\overrightarrow{t}\neq\overrightarrow{0}$? In this case, the vector
+$\overrightarrow{0}$ not necessarily is a solution. But we still have
+the property that if two vectors are solutions, their sum also is a
+solution. In this case, the solution isn't necessarily in a lattice,
+but they are in what is called an \textbf{ideal lattice}. We can
+convert all ideal lattices to an equivalent lattice summing all their
+vectors with a constant in a way that moves one of its points to the
+origin.
 
-The problem is that finding short vectors in lattices is believed to be a very difficult problem. Using known methods, we could compute a basis for the lattice or ideal lattice, but not a basis with short vectors. And so, according with the following assumption, we can't do this except with negligible probability:
+The problem is that finding short vectors in lattices is believed to
+be a very difficult problem. Using known methods, we could compute a
+basis for the lattice or ideal lattice, but not a basis with short
+vectors. And so, according with the following assumption, we can't do
+this except with negligible probability:
 
 \begin{assumption}
-\textbf{Short Integer Solution Problem (SIS$_{n, m, q, \beta}$): }Given $A \in \mathbb{Z}_q^{n \times m}$ with entries that consists in $m$ uniformly random vectors as its columns, find a nonzero vector $\overrightarrow{x} \in \mathbb{Z}^n$ such that:
+\textbf{Short Integer Solution Assumption (SIS$_{n, m, q, \beta}$):
+}Given $A \in \mathbb{Z}_q^{n \times m}$ with entries that consists in
+$m$ uniformly random vectors as its columns, find a nonzero vector
+$\overrightarrow{x} \in \mathbb{Z}^n$ such that:
 
 \begin{itemize}
     \item $||\overrightarrow{x}||\leq \beta < q$
@@ -1343,80 +1411,174 @@ To ensure the existance of nontrivial solutions, is required:
     \item $m \geq n \log q$
 \end{itemize}
 
-The probability of finding solutions in this problem for any $m, q, \beta$ is a negligible function over $n$.
+The probability of finding solutions in this problem for any $m, q,
+\beta$ is a negligible function over $n$.
 \end{assumption}
 
-If we could find collisions ($\overrightarrow{m_1}$, $\overrightarrow{m_2}$) in the Ajtai Hash Function, it means that we could find the vector $\overrightarrow{m_1}-\overrightarrow{m_2}$ which also is in the lattice defined by our hash function. As the two are binary vectors, this ensure that we can find a sufficient small vector in the lattice and this means solving the SIS$_{n, m, q, \beta}$ problem.
+Given this assumption, we can formulate the following theorem:
 
-The main problem with Ajtai's hash function is the key $A$, which could became very large. This problem can be addressed generating $A$ from a smaller key and a pseudorandom generator.
+\begin{theorem}
+  If the SIS assumption is true, then Ajtai's hash function is a
+  collision resistant hash function.
+\end{theorem}
+
+\textbf{Proof: } For any adversary $\mathcal{A}$ which tries to
+compute collisions in Ajtai's hash function, we could create a new
+adversary $\mathcal{B}$ which tries to find hort vectors in a lattice.
+
+The adversary $\mathcal{B}$ would take the matrix $A$ and use it to
+define an Ajtai's hash function. It would use $\mathcal{A}$ to get a
+collision: two values $\overrightarrow{m_1}$ and
+$\overrightarrow{m_2}$ such that
+$A\overrightarrow{m_1}=A\overrightarrow{m_2}$.
+
+We know that $A(\overrightarrow{m_1}-\overrightarrow{m_2}) =
+A\overrightarrow{_m1}-A\overrightarrow{m_2} = 0$, so the adversary
+$\mathcal{B}$ can compute $\overrightarrow{m_1}-\overrightarrow{m_2}$
+as the answer.
+
+As $\overrightarrow{m_1},\overrightarrow{m_2}\in \{0,1\}^n \subset
+\mathbb{Z}_q^n$, then
+$||\overrightarrow{_m1}-A\overrightarrow{m_2}||\leq\sqrt{n}<sqrt{n\log
+  q \leq \beta}$. The resulting vector is considered a short vector in
+the SIS assumption.
+
+The probability of this adversary $\mathcal{B}$ returning a correct
+answer is as least as high as the probability of $\mathcal{A}$
+returning a collision. So:
+
+$$
+\textrm{CRadv}[\mathcal{A}, H_A] \leq Pr[\textrm{Finding\ a\ SIS\ solution}]
+$$
+
+As the prbability of solving a SIS problem is negligible by our
+hypothesis, then the Ajtai's hash function $H_A$ is collision
+resistant. \qed
+
+To ensure that $H_A$ compresses it's input, we neet do set
+$|\{0,1\}^m|>|\mathbb{Z}_q^n|$. This condition is always true if $m>n
+\log q$ as required to ensure security under the SIS assumption.
+
+If we also want a guarantee that $H_A$ is an one-way function, we need
+to ensure that the number of digests without a second-preimage is
+negligible. This can be done setting $m$ as $n \log q$ multiplied by
+some function of $n$ non-constant and greater than one. For example,
+setting $m = n\log n\log q$.
+
 
 \subsection{Miccianccio One-Way Trapdoor Function}
  
-The one-way trapdoor function of this scheme is very similar to the previous hash function. The $F$ algorithm in the scheme gets a $\mathcal{PK} = A \in \mathbb{Z}_q^{m \times n}$ and a $\overrightarrow{x} \in \mathbb{Z}^n$ and $\overrightarrow{x}$ has an euclidean norm lesser than some small $\beta$ and returns a $y$ such that:
+The one-way trapdoor function of this scheme is very similar to the
+previous hash function. The $F$ algorithm in the scheme gets a
+$\mathcal{PK} = A \in \mathbb{Z}_q^{m \times n}$ and a
+$\overrightarrow{x} \in \mathbb{Z}^n$ and $\overrightarrow{x}$ has an
+euclidean norm lesser than some small $\beta$ and returns a $y$ such
+that:
 
 $$
 F(A, \overrightarrow{x}) = y = A\overrightarrow{x} \mod q
 $$
 
-This is essentially the same computation that in Ajtai's hash function. The main difference is that the matrix $A$ here isn't random and uniform. The majority of columns are, but the last columns hide a trapdoor.
+This is essentially the same computation that in Ajtai's hash
+function. The main difference is that the matrix $A$ here isn't random
+and uniform. The majority of columns are, but the last columns hide a
+trapdoor.
 
-To understand the trapdoor, notice that while it's difficult to invert the function $F(A, \cdot)$ for a random and uniform $A$, exist some matrices for which invert the function is trivial. 
+To understand the trapdoor, notice that while it's difficult to invert
+the function $F(A, \cdot)$ for a random and uniform $A$, exist some
+matrices for which invert the function is trivial.
 
-Suppose we have matrix $G \in \mathbb{Z}_q^{n \times w}$ for which is easy to compute $F(A, \cdot)$ and its inverse. Given $G$, we can construct a family of matrices which could also be inverted reducing their inversion problem to the inversion of $G$. For example, if we have:
+Suppose we have matrix $G \in \mathbb{Z}_q^{n \times w}$ for which is
+easy to compute $F(A, \cdot)$ and its inverse. Given $G$, we can
+construct a family of matrices which could also be inverted reducing
+their inversion problem to the inversion of $G$. For example, if we
+have:
 
 $$
 A\begin{bmatrix}R\\I\end{bmatrix} = G
 $$
 
-for $G \in \mathbb{Z}_q^{n \times w}$, a matrix $A \in \mathbb{Z}^{n \times m}$, the identity matrix $I \in \mathbb{Z}^{w \times w}$ and a trapdoor matrix $R \in \mathbb{Z}_q^{(m-w) \times w}$. We can compute  the invrse of $F(A, \overrightarrow{x})$ using this algorithm if we know the trapdoor $R$ and the inverse of $F(G, \cdot)$:
+for $G \in \mathbb{Z}_q^{n \times w}$, a matrix $A \in \mathbb{Z}^{n
+  \times m}$, the identity matrix $I \in \mathbb{Z}^{w \times w}$ and
+a trapdoor matrix $R \in \mathbb{Z}_q^{(m-w) \times w}$. We can
+compute the invrse of $F(A, \overrightarrow{x})$ using this algorithm
+if we know the trapdoor $R$ and the inverse of $F(G, \cdot)$:
 
 \begin{equation*}
  \begin{split}
-F^{-1}(\mathcal{SK}=(A, R), \overrightarrow{y}) :=& \overrightarrow{p} \leftarrow^{\$} \mathbb{Z}_q^m\\
-&\overrightarrow{v} \leftarrow \overrightarrow{y} - A\overrightarrow{p} \mod q\\
-& \overrightarrow{z} \leftarrow \textrm{vector\ such\ that\ } F(G, \overrightarrow{z})=\overrightarrow{v}\\
-&\textbf{return\ }\overrightarrow{p} + \begin{bmatrix}R\\I\end{bmatrix}\overrightarrow{z}
+F^{-1}(\mathcal{SK}=(A, R), \overrightarrow{y}) :=& \overrightarrow{p}
+\leftarrow^{\$} \mathbb{Z}_q^m\\ &\overrightarrow{v} \leftarrow
+\overrightarrow{y} - A\overrightarrow{p} \mod q\\ & \overrightarrow{z}
+\leftarrow \textrm{vector\ such\ that\ } F(G,
+\overrightarrow{z})=\overrightarrow{v}\\ &\textbf{return\ }\overrightarrow{p}
++ \begin{bmatrix}R\\I\end{bmatrix}\overrightarrow{z}
  \end{split}
  \end{equation*}
 
- To prove that this works, we just take the value returned by $F^{-1}$ above, and show that the function $F(A, \cdot)$ maps it to $\overrightarrow{y}$ as expected:
+ To prove that this works, we just take the value returned by $F^{-1}$
+ above, and show that the function $F(A, \cdot)$ maps it to
+ $\overrightarrow{y}$ as expected:
  
  \begin{equation*}
  \begin{split}
- F(A, \overrightarrow{p} + \begin{bmatrix}R\\I\end{bmatrix}\overrightarrow{z}) &= A(\overrightarrow{p} + \begin{bmatrix}R\\I\end{bmatrix}\overrightarrow{z})\\
- &= A\overrightarrow{p} + A\begin{bmatrix}R\\I\end{bmatrix}\overrightarrow{z}\\
- &= A\overrightarrow{p} + G\overrightarrow{z}\\
+ F(A, \overrightarrow{p}
+ + \begin{bmatrix}R\\I\end{bmatrix}\overrightarrow{z}) &=
+   A(\overrightarrow{p}
+   + \begin{bmatrix}R\\I\end{bmatrix}\overrightarrow{z})\\ &=
+     A\overrightarrow{p} +
+     A\begin{bmatrix}R\\I\end{bmatrix}\overrightarrow{z}\\ &=
+     A\overrightarrow{p} + G\overrightarrow{z}\\
  \end{split}
  \end{equation*}
  
- But we know that $G\overrightarrow{z}=\overrightarrow{z}=\overrightarrow{y} - A\overrightarrow{p}$:
+ But we know that
+ $G\overrightarrow{z}=\overrightarrow{z}=\overrightarrow{y} -
+ A\overrightarrow{p}$:
  
   \begin{equation*}
  \begin{split}
- F(A, \overrightarrow{p} + \begin{bmatrix}R\\I\end{bmatrix}\overrightarrow{z}) &=
- A\overrightarrow{p} + \overrightarrow{y} - A\overrightarrow{p}\\
- &= \overrightarrow{y}\\
+ F(A, \overrightarrow{p}
+ + \begin{bmatrix}R\\I\end{bmatrix}\overrightarrow{z}) &=
+   A\overrightarrow{p} + \overrightarrow{y} - A\overrightarrow{p}\\ &=
+   \overrightarrow{y}\\
   \end{split}
  \end{equation*}
  
- But the value $\overrightarrow{x}$ generated by $F^{-1}$ also need to be a small value. To ensure this, the random vector $\overrightarrow{p}$ generated in the first line of $F^{-1}$ must be a small vector and the trapdoor $R$ must be a matrix with small 
- values. When they are small enough, $\overrightarrow{p} + \begin{bmatrix}R\\I\end{bmatrix}\overrightarrow{z}$ also will be a small vector with high probability. If not, we could try again choosing a different probabilistic $\overrightarrow{p}$.
+ But the value $\overrightarrow{x}$ generated by $F^{-1}$ also need to
+ be a small value. To ensure this, the random vector
+ $\overrightarrow{p}$ generated in the first line of $F^{-1}$ must be
+ a small vector and the trapdoor $R$ must be a matrix with small
+ values. When they are small enough, $\overrightarrow{p}
+ + \begin{bmatrix}R\\I\end{bmatrix}\overrightarrow{z}$ also will be a
+   small vector with high probability. If not, we could try again
+   choosing a different probabilistic $\overrightarrow{p}$.
  
  \subsubsection{Choosing G}
  
- In an exemple of $n=2$ and $q=8$ or some other power of two, we could choose the following $G$:
+ In an exemple of $n=2$ and $q=8$ or some other power of two, we could
+ choose the following $G$:
  
+ $$ G = \begin{bmatrix}1 & 2 & 4 & 0 & 0 & 0\\0 & 0 & 0 & 1 & 2&
+   4\end{bmatrix}
  $$
- G = \begin{bmatrix}1 & 2 & 4 & 0 & 0 & 0\\0 & 0 & 0 & 1 & 2& 4\end{bmatrix}
- $$
  
- If we want to discover a value $\overrightarrow{x}$ such that $G\overrightarrow{x}=\overrightarrow{y}$, we could find it choosing $\overrightarrow{x}$ as the binary representation of $\overrightarrow{y}$. For example, if $\overrightarrow{y}=\begin{bmatrix}5\\2\end{bmatrix}$, then $\overrightarrow{x}=\begin{bmatrix}1&0&1&0&1&0\end{bmatrix}^T$.
+ If we want to discover a value $\overrightarrow{x}$ such that
+ $G\overrightarrow{x}=\overrightarrow{y}$, we could find it choosing
+ $\overrightarrow{x}$ as the binary representation of
+ $\overrightarrow{y}$. For example, if
+ $\overrightarrow{y}=\begin{bmatrix}5\\2\end{bmatrix}$, then
+ $\overrightarrow{x}=\begin{bmatrix}1&0&1&0&1&0\end{bmatrix}^T$.
  
- For bigger values of $n$ and $q$, we just use bigger matrices $G$ built with this method. But instead of using the simpler binary representation above, we can get better results using algorithms of gaussian sampling over lattices.
+ For bigger values of $n$ and $q$, we just use bigger matrices $G$
+ built with this method. But instead of using the simpler binary
+ representation above, we can get better results using algorithms of
+ gaussian sampling over lattices.
  
- \subsubsection{Choosing the Matrix A and the One-Way Trapdoor Function Security}
+ \subsubsection{Choosing the Matrix A and the One-Way Trapdoor
+   Function Security}
 
- We want to choose a matrix $A \in \mathbb{Z}_q^{n \times m}$ such that $A\begin{bmatrix}R\\I\end{bmatrix} = G$. 
+ We want to choose a matrix $A \in \mathbb{Z}_q^{n \times m}$ such
+ that $A\begin{bmatrix}R\\I\end{bmatrix} = G$.
  
  We can choose then:
  
@@ -1426,21 +1588,77 @@ F^{-1}(\mathcal{SK}=(A, R), \overrightarrow{y}) :=& \overrightarrow{p} \leftarro
  
  when $\overline{A} \in \mathbb{Z}_q^{n \times (m-w)}$ is a random uniform matrix.
  
- \begin{theorem}
- The Micciancio's One-Way Trapdoor Function is secure if the probability of finding small vectors in arbitrary lattices is negligible for all algorithms.
- \end{theorem}
+\begin{theorem}
+ The Micciancio's one-way trapdoor scheme $I$ is secure if Ajtai's
+ hash function $H_A$ is also an one-way function.
+\end{theorem}
  
- \textbf{Proof: }
- 
- This shows that our one-way function $F$ is a one-way function if $m-w \geq n \log q$ and if Ajtai's hash function is also one-way. If we could find the inverse of $F(A, \cdot)$, we could find the inverse of Ajtai's hash function setting the Ajtai's hash matrix as $\overline{A}$, deriving the correspondent $A$ with the trapdoor, getting the inverse of $F$ and dropping the last lines to get Ajtai's hash inverse.
- 
+\textbf{Proof: }For all adversaries $\mathcal{A}$ which try to invert
+Micciancio's one-way function, we could build a new adversary
+$\mathcal{B}$ which try to invert Ajtai's hash function.
+
+Adversary $\mathcal{B}$ gets matrix $A$ as a system parameter. Then it
+sets $\overline{A}=A$, chooses a trapdoor $R$ and sends to adversary
+$\mathcal{A}$ the public key $\begin{bmatrix}\overline{A} &
+  G-\overline{A}R\end{bmatrix}$.
+
+Adversary $\mathcal{B}$ gets from its challenger a digest
+$\overrightarrow{t_1} \in \mathbb{Z}_q^n$ such that
+$\overrightarrow{t_1}=A\overrightarrow{x} \mod q$. It chooses a random
+$\overrightarrow{m*} \in \mathbb{Z}_q^{w}$ where $w$ is the number of
+columns of $G$. It computes $\overrightarrow{t_2} =
+(G-\overline{A}R)\overrightarrow{m*}$. Finally, it sends
+$\overrightarrow{t_1}+\overrightarrow{t_2}$ as the challenge to
+adversary $\mathcal{A}$ and gets the answer $\overrightarrow{m}$.
+
+Let $\overrightarrow{m}=\overrightarrow{m_1}||\overrightarrow{m_2}$
+with $m_1 \in \mathbb{Z}_q^m$. Adversary $\mathcal{B}$ returns
+$\overrightarrow{m_1}$.
+
+If $\mathcal{A}$ outputs a correct answer, it means that
+$\overline{A}\overrightarrow{m_1} +
+(G-\overline{A}R)\overrightarrow{m_2}=\overrightarrow{t_1} +
+\overrightarrow{t_2}$. Notice that if $m_2=m*$, then
+$\overline{A}\overrightarrow{m_1}=\overrightarrow{t_1}$ and so
+$\overrightarrow{m_1}=\overrightarrow{x}$. So we have:
+
+$$ \textrm{OWadv}[\mathcal{B},H_B] \geq \textrm{OWadv}[\mathcal{A},
+  I]\cdot Pr[\overrightarrow{m_2}=\overrightarrow{m*}]
+$$
+
+If $\mathcal{A}$ returned a correct answer, it means that $m_2$ always
+will be a correct solution to the system of equations represented by
+$(G-\overline{A}R)\overrightarrow{m_2} =
+\overrightarrow{t_1}+\overrightarrow{t_2} -
+\overline{A}\overrightarrow{m_1}$. As $G \in \mathbb{Z}_q^{n \times
+  w}$, the number of solutions is bounded by $w-n+1$. For the specific
+$G$ presented in this section, $w=n\log q$.
+
+We can combine these results and get:
+
+$$ \textrm{OWadv}[\mathcal{A},I] \leq n\log q \cdot
+\textrm{OWadv}[\mathcal{B}, A_H]
+$$
+
+This completes the proof that if Ajtai's hash function $H_A$ is an
+one-way function, Micciancio's one-way trapdoor function is
+secure. \qed
+
+
 \subsection{Combining the Constructions to Create the Chameleon Hash}
 
 \subsubsection{Security and System Parameters}
 
-The security parameter $\lambda$ here means the number of lines in the matrices for Ajtai's hash function and Micciancio's one-way trapdoor function.
+The security parameter $\lambda$ here means the number of lines in the
+matrices for Ajtai's hash function and Micciancio's one-way trapdoor
+function.
 
-Ajtai's hash matrix will be a fixed random and unifrom $n \times m$ matrix $A_1$ modulo $q$ which could be the same matrix in all implementations with $m \geq n \log q$. And $q$ is some fixed value chosen to be convenient. It could be some power of two which could represent the numbers which could be stored in 32 or 64 bits. Both $A_1$ and $q$ are encoded in system paramenter $\Lambda$.
+Ajtai's hash matrix will be a fixed random and unifrom $n \times m$
+matrix $A_1$ modulo $q$ which could be the same matrix in all
+implementations with $m \geq n \log q$. And $q$ is some fixed value
+chosen to be convenient. It could be some power of two which could
+represent the numbers which could be stored in 32 or 64 bits. Both
+$A_1$ and $q$ are encoded in system paramenter $\Lambda$.
 
 \subsubsection{Key Generation}
 
