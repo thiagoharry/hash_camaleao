@@ -1,0 +1,53 @@
+\documentclass{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage[brazilian]{babel}
+\usepackage[ruled,vlined]{algorithm2e}
+
+\title{Assinaturas à Partir de Hashes Camaleão}
+}
+\author{Thiago Leucz Astrizi}
+\institute{UFSC}
+\date{2020}
+\setbeamertemplate{footline}[frame number]
+
+\begin{document}
+
+\frame{\titlepage}
+
+\begin{frame}
+\frametitle{Definições}
+
+\begin{frame}
+\frametitle{Definições}
+
+\begin{block}{Hash Camaleão Simples}
+    Esquema formado por tupla de algoritmos $CH=(KeyGen, Hash, Collision)$ sobre $(M, R, D)$ com $M=\{M_{\lambda,\Lambda}\}_{\lambda, \Lambda}$, $R=\{R_{\lambda,\Lambda}\}_{\lambda, \Lambda}$ e $D=\{D_{\lambda,\Lambda}\}_{\lambda, \Lambda}$:
+    \begin{itemize}
+    \item $R$ deve ser eficientemente reconhecível e amostrável.
+    \item $M$ deve ser eficientemente reconhecível.
+        \item $KeyGen$: Probabilístico. Retorna $(\mathcal{PK}, \mathcal{SK})\leftarrow^{\$}KeyGen(\lambda,\Lambda)$.
+        \item $Hash$: Determinístico, recebe $\lambda$, $\Lambda$, $\mathcal{PK}$, $msg\in M_{\lambda,\Lambda}$ e $rnd\in R_{\lambda,\Lambda}$ e retorna $dgt \in D_{\lambda,\Lambda}$
+        \item $Collision$: Probabilístico, recebe $\mathcal{SK}$, $msg \in M_{\lambda,\Lambda}$, $rnd \in R_{\lambda,\Lambda}$ e $msg' \in D_{\lambda,\Lambda}$. Retorna $rnd' \in R_{\lambda,\Lambda}$ tal que $Hash(\lambda,\Lambda,\mathcal{PK}, msg, rnd)=Hash(\lambda,\Lambda,\mathcal{PK}, msg', rnd')$.
+    \end{itemize}
+    Para todo adversário eficiente $\mathcal{A}$ que recebe $\lambda$, $\Lambda$ e $\mathcal{PK}$, a probabilidade de encontrar $(msg, rnd)$ e $(msg', rnd')$ tal que eles sejam uma colisão em $Hash(\lambda, \Lambda, \mathcal{PK}, \cdot, \cdot)$ é negligível (e denotada por CCRadv$[\mathcal{A}, CH]$).
+    \end{block}
+\end{frame}
+
+
+\begin{block}{Hash Camaleão de Pré-Imagem}
+    Esquema formado por tupla de algoritmos $CH=(KeyGen, Hash, PreImage)$ sobre $(M, R, D)$ com $M=\{M_{\lambda,\Lambda}\}_{\lambda, \Lambda}$, $R=\{R_{\lambda,\Lambda}\}_{\lambda, \Lambda}$ e $D=\{D_{\lambda,\Lambda}\}_{\lambda, \Lambda}$:
+    \begin{itemize}
+    \item $R$ deve ser eficientemente reconhecível e amostrável.
+    \item $M$ deve ser eficientemente reconhecível.
+        \item $KeyGen$: Probabilístico. Retorna $(\mathcal{PK}, \mathcal{SK})\leftarrow^{\$}KeyGen(\lambda,\Lambda)$.
+        \item $Hash$: Determinístico, recebe $\lambda$, $\Lambda$, $\mathcal{PK}$, $msg\in M_{\lambda,\Lambda}$ e $rnd\in R_{\lambda,\Lambda}$ e retorna $dgt \in D_{\lambda,\Lambda}$
+        \item $PreImage$: Probabilístico, recebe $\mathcal{SK}$, $msg \in M_{\lambda,\Lambda}$ e $dgt \in D_{\lambda,\Lambda}$. Retorna $rnd \in R_{\lambda,\Lambda}$ tal que $Hash(\mathcal{PK}, msg, rnd)=dgt$.
+    \end{itemize}
+    Para todo adversário eficiente $\mathcal{A}$ que recebe $\lambda$, $\Lambda$ e $\mathcal{PK}$, a probabilidade de encontrar $(msg, rnd)$ e $(msg', rnd')$ tal que eles sejam uma colisão em $Hash(\lambda, \Lambda, \mathcal{PK}, \cdot, \cdot)$ é negligível (e denotada por CCRadv$[\mathcal{A}, CH]$).
+    \end{block}
+\end{frame}
+
+
+
+\end{document}
